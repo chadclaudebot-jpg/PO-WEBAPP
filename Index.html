@@ -153,17 +153,19 @@
     }
     table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 13px; }
     thead th {
-      position: sticky; top: 0; z-index: 10;
+      position: sticky; top: 0;
       background: var(--panel-2);
       color: var(--accent); font-weight: 700;
       text-transform: uppercase; letter-spacing: 0.5px; font-size: 11px;
       text-align: left;
       padding: 10px 12px;
       border-bottom: 2px solid var(--accent);
+      border-right: 1px solid #505c6c;
       white-space: nowrap;
-      cursor: pointer; user-select: none;
+      cursor: default; user-select: none;
       overflow: hidden; text-overflow: ellipsis;
     }
+    thead th:last-child { border-right: none; }
     thead th:hover { background: var(--row-hover); }
     thead th .sort-ind {
       display: inline-block; margin-left: 4px;
@@ -174,15 +176,23 @@
     thead th.spacer-col { cursor: default; }
     thead th.spacer-col:hover { background: var(--panel-2); }
     td.spacer { padding: 0; }
+    .col-resizer {
+      position: absolute; right: 0; top: 0; bottom: 0; width: 5px;
+      cursor: col-resize; z-index: 1;
+    }
+    .col-resizer:hover { background: var(--accent); opacity: 0.6; }
+    .col-resizer.resizing { background: var(--accent); opacity: 0.8; }
 
     tbody td {
       padding: 10px 12px;
-      border-bottom: 1px solid var(--border);
+      border-bottom: 1px solid #5a6880;
+      border-right: 1px solid #404a58;
       color: var(--text);
       white-space: nowrap;
       overflow: hidden; text-overflow: ellipsis;
       vertical-align: middle;
     }
+    tbody td:last-child { border-right: none; }
     tbody tr:hover { background: var(--row-hover); }
     tbody tr:last-child td { border-bottom: none; }
 
@@ -433,6 +443,10 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 16h6v-6"/><path d="M22 16l-7-7-4 4-6-6"/></svg>
           Incoming Shipment
         </button>
+        <button class="nav-btn" data-module="received">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/><path d="M16 3H8a2 2 0 00-2 2v2h12V5a2 2 0 00-2-2z"/><path d="M12 12v4M10 14l2 2 2-2"/></svg>
+          Received
+        </button>
         <button class="nav-btn" data-module="samples">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
           Samples
@@ -538,6 +552,10 @@
             <label>Notes tab</label>
             <input type="text" id="tab_notes" placeholder="NOTES">
           </div>
+          <div class="form-field">
+            <label>Received tab</label>
+            <input type="text" id="tab_received" placeholder="RECEIVED">
+          </div>
           <div class="settings-info" id="settingsSheetInfo">Loading available tabs...</div>
           <div class="settings-test-result" id="settingsTestResult"></div>
         </div>
@@ -586,6 +604,7 @@
     incoming:  { label: 'Incoming Shipment',  title: 'Incoming Shipments',  addLabel: 'Add New Shipment', recordType: 'shipments', defaultTab: 'INCOMING_SHIPMENT' },
     samples:   { label: 'Samples',            title: 'Samples',             addLabel: 'Add New Sample',   recordType: 'samples',   defaultTab: 'SAMPLES'           },
     notes:     { label: 'Notes',              title: 'Notes',               addLabel: 'Add New Note',     recordType: 'notes',     defaultTab: 'NOTES'             },
+    received:  { label: 'Received',           title: 'Received',            addLabel: 'Add New Record',   recordType: 'records',   defaultTab: 'RECEIVED'          },
   };
 
   function newModuleState() {
@@ -609,10 +628,11 @@
       incoming:  newModuleState(),
       samples:   newModuleState(),
       notes:     newModuleState(),
+      received:  newModuleState(),
     },
     config: {
       tabs: {
-        purchased: '', incoming: '', samples: '', notes: '',
+        purchased: '', incoming: '', samples: '', notes: '', received: '',
       },
       pin: '1234',
     },
@@ -628,7 +648,7 @@
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed && parsed.tabs) {
-          ['purchased','incoming','samples','notes'].forEach(function (k) {
+          ['purchased','incoming','samples','notes','received'].forEach(function (k) {
             STATE.config.tabs[k] = parsed.tabs[k] || '';
           });
         }
@@ -710,7 +730,7 @@
   });
 
   // Columns whose text should wrap instead of truncate with ellipsis.
-  const WRAP_COLUMNS_RAW = ['REMARKS'];
+  const WRAP_COLUMNS_RAW = ['REMARKS', 'STATUS'];
   const WRAP_COLUMNS = {};
   WRAP_COLUMNS_RAW.forEach(function (k) {
     WRAP_COLUMNS[k.toUpperCase().replace(/[^A-Z0-9]/g, '')] = true;
@@ -740,12 +760,29 @@
 
   const DEFAULT_COL_WIDTH = 110;
 
+  const CENTER_COLUMNS_RAW = ['SP CODE', 'SUPPLIER CODE', 'SHIPMENT', 'STATUS', 'DATE RECEIVED'];
+  const CENTER_COLUMNS = {};
+  CENTER_COLUMNS_RAW.forEach(function (k) {
+    CENTER_COLUMNS[k.toUpperCase().replace(/[^A-Z0-9]/g, '')] = true;
+  });
+
+  // User-dragged column widths — persisted to localStorage
+  const COL_WIDTHS_KEY = 'po_webapp_col_widths_v1';
+  let savedColWidths = {};
+  try { const _r = localStorage.getItem(COL_WIDTHS_KEY); if (_r) savedColWidths = JSON.parse(_r) || {}; } catch(e) {}
+  function saveColWidth(header, w) {
+    savedColWidths[header] = w;
+    try { localStorage.setItem(COL_WIDTHS_KEY, JSON.stringify(savedColWidths)); } catch(e) {}
+  }
+
   function colStyle(header, isHeaderCell) {
-    if (!isHeaderCell) return '';
     const key = String(header || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const align = CENTER_COLUMNS[key] ? 'text-align:center;' : '';
+    if (!isHeaderCell) return align ? ' style="' + align + '"' : '';
+    if (savedColWidths[header] !== undefined) return ' style="width:' + savedColWidths[header] + 'px;' + align + '"';
     const factor = COLUMN_WIDTH_FACTORS[key];
     const w = factor ? Math.round(DEFAULT_COL_MAX_WIDTH * factor) : DEFAULT_COL_WIDTH;
-    return ' style="width:' + w + 'px"';
+    return ' style="width:' + w + 'px;' + align + '"';
   }
   function colCellHtml(header, value) {
     const key = String(header || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -948,7 +985,7 @@
         if (va === null || va === undefined) va = '';
         if (vb === null || vb === undefined) vb = '';
         const na = parseFloat(va); const nb = parseFloat(vb);
-        if (!isNaN(na) && !isNaN(nb) && String(va).trim() !== '' && String(vb).trim() !== '') {
+        if (!isNaN(na) && !isNaN(nb) && String(va).trim() !== '' && String(vb).trim() !== '' && na !== nb) {
           return (na - nb) * sortDir;
         }
         return String(va).localeCompare(String(vb)) * sortDir;
@@ -979,9 +1016,7 @@
     const rows = m.filtered;
     $('rowCount').textContent = rows.length;
     $('totalCount').textContent = m.rows.length;
-    $('sortInfo').textContent = m.sortKey
-      ? ('Sorted by ' + m.sortKey + ' ' + (m.sortDir === 1 ? '↑' : '↓'))
-      : '';
+    $('sortInfo').textContent = '';
 
     if (headers.length === 0) {
       $('tableContainer').innerHTML = '<div class="empty-state">Tab has no headers. Add column headers in row 1 of the <strong>' + escapeHtml(tabFor(STATE.activeModule)) + '</strong> tab.</div>';
@@ -998,10 +1033,7 @@
     let html = '<div class="table-wrap"><table style="min-width:' + totalMinWidth + 'px"><thead>';
     html += '<tr>';
     headers.forEach(function (h) {
-      const ind = (m.sortKey === h)
-        ? (m.sortDir === 1 ? '<span class="sort-ind">↑</span>' : '<span class="sort-ind">↓</span>')
-        : '';
-      html += '<th' + colStyle(h, true) + ' data-col="' + escapeHtml(h) + '">' + escapeHtml(h) + ind + '</th>';
+      html += '<th' + colStyle(h, true) + ' data-col="' + escapeHtml(h) + '">' + escapeHtml(h) + '<div class="col-resizer" data-resizer="' + escapeHtml(h) + '"></div></th>';
     });
     html += '<th class="spacer-col"></th>';
     html += '<th class="actions-col">Actions</th>';
@@ -1028,15 +1060,37 @@
     html += '</tbody></table></div>';
     $('tableContainer').innerHTML = html;
 
-    // sort headers
-    document.querySelectorAll('thead th[data-col]').forEach(function (th) {
-      th.addEventListener('click', function () {
-        const col = th.dataset.col;
-        if (m.sortKey === col) m.sortDir = -m.sortDir;
-        else { m.sortKey = col; m.sortDir = 1; }
-        applyFiltersAndRender();
+    // column resize handles
+    document.querySelectorAll('.col-resizer[data-resizer]').forEach(function (handle) {
+      handle.addEventListener('mousedown', function (e) {
+        e.preventDefault(); e.stopPropagation();
+        const th = handle.parentElement;
+        const startX = e.clientX;
+        const startW = th.offsetWidth;
+        handle.classList.add('resizing');
+        function onMove(e) {
+          const newW = Math.max(40, startW + (e.clientX - startX));
+          th.style.width = newW + 'px';
+          updateTableMinWidth();
+        }
+        function onUp(e) {
+          handle.classList.remove('resizing');
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+          saveColWidth(handle.dataset.resizer, Math.max(40, startW + (e.clientX - startX)));
+        }
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
       });
     });
+
+    function updateTableMinWidth() {
+      const table = $('tableContainer').querySelector('table');
+      if (!table) return;
+      let total = 80;
+      $('tableContainer').querySelectorAll('thead th[data-col]').forEach(function (th) { total += th.offsetWidth; });
+      table.style.minWidth = total + 'px';
+    }
 
     // edit / delete actions
     document.querySelectorAll('button[data-edit]').forEach(function (b) {
@@ -1113,6 +1167,7 @@
       + '</div>';
     $('modalMount').innerHTML = html;
 
+    _attachEsc(closeModal);
     $('modalClose').addEventListener('click', closeModal);
     $('modalCancel').addEventListener('click', closeModal);
     $('modalBackdrop').addEventListener('click', function (e) {
@@ -1128,7 +1183,16 @@
     });
   }
 
-  function closeModal() { $('modalMount').innerHTML = ''; }
+  let _escHandler = null;
+  function _attachEsc(fn) {
+    _detachEsc();
+    _escHandler = function (e) { if (e.key === 'Escape') fn(); };
+    document.addEventListener('keydown', _escHandler);
+  }
+  function _detachEsc() {
+    if (_escHandler) { document.removeEventListener('keydown', _escHandler); _escHandler = null; }
+  }
+  function closeModal() { _detachEsc(); $('modalMount').innerHTML = ''; }
 
   function saveNew(data, saveText) {
     const tab = tabFor(STATE.activeModule);
@@ -1264,6 +1328,7 @@
     $('tab_incoming').value  = STATE.config.tabs.incoming  || '';
     $('tab_samples').value   = STATE.config.tabs.samples   || '';
     $('tab_notes').value     = STATE.config.tabs.notes     || '';
+    $('tab_received').value  = STATE.config.tabs.received  || '';
     // Surface the currently resolved (active) tab name for Purchased Order
     const resolvedPO = tabFor('purchased');
     $('tab_purchased').placeholder = resolvedPO;
@@ -1297,6 +1362,7 @@
     STATE.config.tabs.incoming  = ($('tab_incoming').value  || '').trim();
     STATE.config.tabs.samples   = ($('tab_samples').value   || '').trim();
     STATE.config.tabs.notes     = ($('tab_notes').value     || '').trim();
+    STATE.config.tabs.received  = ($('tab_received').value  || '').trim();
     const pin = ($('settingsPin').value || '').replace(/[^0-9]/g, '').slice(0, 4);
     if (pin && pin.length !== 4) { showToast('PIN must be exactly 4 digits', 'error'); return; }
     if (pin.length === 4) STATE.config.pin = pin;
@@ -1318,6 +1384,7 @@
       incoming:  ($('tab_incoming').value  || '').trim() || MODULES.incoming.defaultTab,
       samples:   ($('tab_samples').value   || '').trim() || MODULES.samples.defaultTab,
       notes:     ($('tab_notes').value     || '').trim() || MODULES.notes.defaultTab,
+      received:  ($('tab_received').value  || '').trim() || MODULES.received.defaultTab,
     };
     const ids = Object.keys(fields);
     let done = 0;
