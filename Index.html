@@ -37,7 +37,7 @@
 
     /* Sidebar */
     .sidebar {
-      width: 240px; min-width: 240px;
+      width: 180px; min-width: 180px;
       background: var(--sidebar);
       border-right: 1px solid var(--border);
       display: flex; flex-direction: column;
@@ -148,32 +148,38 @@
       background: var(--panel);
       border: 1px solid var(--border);
       border-radius: 8px;
-      overflow: hidden;
+      overflow-x: auto;
+      max-width: 100%;
     }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 13px; }
     thead th {
-      position: sticky; top: 0;
+      position: sticky; top: 0; z-index: 10;
       background: var(--panel-2);
-      color: var(--text); font-weight: 600;
+      color: var(--accent); font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.5px; font-size: 11px;
       text-align: left;
       padding: 10px 12px;
-      border-bottom: 1px solid var(--border);
+      border-bottom: 2px solid var(--accent);
       white-space: nowrap;
       cursor: pointer; user-select: none;
+      overflow: hidden; text-overflow: ellipsis;
     }
     thead th:hover { background: var(--row-hover); }
     thead th .sort-ind {
       display: inline-block; margin-left: 4px;
       color: var(--accent); font-size: 11px;
     }
-    thead th.actions-col { cursor: default; text-align: right; }
+    thead th.actions-col { cursor: default; text-align: right; width: 80px; }
     thead th.actions-col:hover { background: var(--panel-2); }
+    thead th.spacer-col { cursor: default; }
+    thead th.spacer-col:hover { background: var(--panel-2); }
+    td.spacer { padding: 0; }
 
     tbody td {
       padding: 10px 12px;
       border-bottom: 1px solid var(--border);
       color: var(--text);
-      white-space: nowrap; max-width: 320px;
+      white-space: nowrap;
       overflow: hidden; text-overflow: ellipsis;
       vertical-align: middle;
     }
@@ -694,11 +700,9 @@
   // tolerant to spaces, underscores, and casing in the sheet headers.
   const DEFAULT_COL_MAX_WIDTH = 320;
   const COLUMN_WIDTH_FACTORS_RAW = {
-    'ITEMCODE':      0.9,
-    'SIZE':          0.5,
-    'SP CODE':       0.4,
-    'SUPPLIER CODE': 0.4,
-    'REMARKS':       0.7,
+    'ITEMCODE':         0.55,
+    'ITEM DESCRIPTION': 0.55,
+    'SIZE':             0.4,
   };
   const COLUMN_WIDTH_FACTORS = {};
   Object.keys(COLUMN_WIDTH_FACTORS_RAW).forEach(function (k) {
@@ -713,7 +717,7 @@
   });
 
   // Columns hidden from the table view (data and edit form are unaffected).
-  const HIDDEN_COLUMNS_RAW = ['QTY RECEIVED'];
+  const HIDDEN_COLUMNS_RAW = ['QTY RECEIVED', 'ITEM DESCRIPTION'];
   const HIDDEN_COLUMNS = {};
   HIDDEN_COLUMNS_RAW.forEach(function (k) {
     HIDDEN_COLUMNS[k.toUpperCase().replace(/[^A-Z0-9]/g, '')] = true;
@@ -734,26 +738,14 @@
     COLUMN_ORDER[k.toUpperCase().replace(/[^A-Z0-9]/g, '')] = i;
   });
 
-  function colMaxWidth(header) {
+  const DEFAULT_COL_WIDTH = 110;
+
+  function colStyle(header, isHeaderCell) {
+    if (!isHeaderCell) return '';
     const key = String(header || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
     const factor = COLUMN_WIDTH_FACTORS[key];
-    return factor ? Math.round(DEFAULT_COL_MAX_WIDTH * factor) : null;
-  }
-  function colStyle(header, isHeaderCell) {
-    const key = String(header || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-    const w = colMaxWidth(header);
-    const wrap = WRAP_COLUMNS[key];
-    if (!w && !wrap) return '';
-    if (isHeaderCell) {
-      const s = w ? 'max-width:' + w + 'px;overflow:hidden;text-overflow:ellipsis;' : '';
-      return s ? ' style="' + s + '"' : '';
-    }
-    // Body cells: keep <td> as a normal table-cell so row heights line up with
-    // other columns. Wrap-column truncation is applied to an inner <div> via
-    // colCellHtml() — applying -webkit-box directly to the td breaks the
-    // table layout and misaligns horizontal borders.
-    const s = w ? 'max-width:' + w + 'px;' : '';
-    return s ? ' style="' + s + '"' : '';
+    const w = factor ? Math.round(DEFAULT_COL_MAX_WIDTH * factor) : DEFAULT_COL_WIDTH;
+    return ' style="width:' + w + 'px"';
   }
   function colCellHtml(header, value) {
     const key = String(header || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -973,7 +965,9 @@
     const headers = m.headers
       .map(function (h, i) { return { h: h, i: i }; })
       .filter(function (x) {
-        return !HIDDEN_COLUMNS[x.h.toUpperCase().replace(/[^A-Z0-9]/g, '')];
+        const name = String(x.h || '').trim();
+        if (!name) return false;
+        return !HIDDEN_COLUMNS[name.toUpperCase().replace(/[^A-Z0-9]/g, '')];
       })
       .map(function (x) {
         const key = x.h.toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -994,7 +988,14 @@
       return;
     }
 
-    let html = '<div class="table-wrap"><table><thead>';
+    let totalMinWidth = 80;
+    headers.forEach(function (h) {
+      const k = String(h || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+      const factor = COLUMN_WIDTH_FACTORS[k];
+      totalMinWidth += factor ? Math.round(DEFAULT_COL_MAX_WIDTH * factor) : DEFAULT_COL_WIDTH;
+    });
+
+    let html = '<div class="table-wrap"><table style="min-width:' + totalMinWidth + 'px"><thead>';
     html += '<tr>';
     headers.forEach(function (h) {
       const ind = (m.sortKey === h)
@@ -1002,13 +1003,14 @@
         : '';
       html += '<th' + colStyle(h, true) + ' data-col="' + escapeHtml(h) + '">' + escapeHtml(h) + ind + '</th>';
     });
+    html += '<th class="spacer-col"></th>';
     html += '<th class="actions-col">Actions</th>';
     html += '</tr>';
 
     html += '</thead><tbody>';
 
     if (rows.length === 0) {
-      html += '<tr><td colspan="' + (headers.length + 1) + '" class="empty-state">No ' + escapeHtml(cfg.recordType) + ' match your filters.</td></tr>';
+      html += '<tr><td colspan="' + (headers.length + 2) + '" class="empty-state">No ' + escapeHtml(cfg.recordType) + ' match your filters.</td></tr>';
     } else {
       rows.forEach(function (row) {
         html += '<tr>';
@@ -1016,6 +1018,7 @@
           const v = row[h];
           html += '<td' + colStyle(h, false) + ' title="' + escapeHtml(v) + '">' + colCellHtml(h, v) + '</td>';
         });
+        html += '<td class="spacer"></td>';
         html += '<td class="actions">';
         html += '<button class="btn btn-icon" data-edit="' + row.__rowIndex + '" title="Edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>';
         html += '<button class="btn btn-icon btn-danger" data-delete="' + row.__rowIndex + '" title="Delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg></button>';
