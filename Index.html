@@ -92,7 +92,7 @@
     }
     .search-box input {
       width: 100%;
-      padding: 8px 12px 8px 34px;
+      padding: 8px 28px 8px 34px;
       background: var(--panel-2);
       border: 1px solid var(--border);
       color: var(--text);
@@ -101,6 +101,14 @@
       outline: none;
     }
     .search-box input:focus { border-color: var(--accent); }
+    .search-clear {
+      position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; color: var(--muted);
+      font-size: 16px; line-height: 1; cursor: pointer; padding: 2px 4px;
+      display: none;
+    }
+    .search-clear:hover { color: var(--text); }
+    .search-box.has-value .search-clear { display: block; }
     .search-box svg {
       position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
       width: 16px; height: 16px; color: var(--muted);
@@ -173,6 +181,9 @@
     }
     thead th.actions-col { cursor: default; text-align: right; width: 80px; }
     thead th.actions-col:hover { background: var(--panel-2); }
+    th.col-itemcode { background: rgba(47,129,247,0.18) !important; border-left: 3px solid rgba(47,129,247,0.8) !important; color: #79c0ff !important; }
+    td.col-itemcode { background: rgba(47,129,247,0.10); border-left: 3px solid rgba(47,129,247,0.6) !important; font-weight: 700; color: #a5c8ff; }
+    tbody tr:hover td.col-itemcode { background: rgba(47,129,247,0.18); }
     thead th.spacer-col { cursor: default; }
     thead th.spacer-col:hover { background: var(--panel-2); }
     td.spacer { padding: 0; }
@@ -195,6 +206,46 @@
     tbody td:last-child { border-right: none; }
     tbody tr:hover { background: var(--row-hover); }
     tbody tr:last-child td { border-bottom: none; }
+
+    .status-dot {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 50%; flex-shrink: 0;
+      transition: transform 0.1s;
+    }
+    @keyframes pulse-received  { 0%,100% { box-shadow: 0 0 5px 1px rgba(63,185,80,0.55),  0 0 0 2px rgba(63,185,80,0.2);  } 50% { box-shadow: 0 0 12px 5px rgba(63,185,80,0.9),   0 0 0 3px rgba(63,185,80,0.45);  } }
+    @keyframes pulse-confirmed { 0%,100% { box-shadow: 0 0 5px 1px rgba(121,192,255,0.55),0 0 0 2px rgba(47,129,247,0.2);  } 50% { box-shadow: 0 0 12px 5px rgba(121,192,255,0.9), 0 0 0 3px rgba(47,129,247,0.45);  } }
+    @keyframes pulse-transit   { 0%,100% { box-shadow: 0 0 5px 1px rgba(212,100,30,0.55), 0 0 0 2px rgba(212,100,30,0.2); } 50% { box-shadow: 0 0 12px 5px rgba(212,100,30,0.9),  0 0 0 3px rgba(212,100,30,0.45); } }
+    @keyframes pulse-partial   { 0%,100% { box-shadow: 0 0 5px 1px rgba(240,192,0,0.55),  0 0 0 2px rgba(240,192,0,0.2);  } 50% { box-shadow: 0 0 12px 5px rgba(240,192,0,0.9),   0 0 0 3px rgba(240,192,0,0.45);  } }
+    .s-received  { background: #3fb950; animation: pulse-received  2.2s ease-in-out infinite; }
+    .s-confirmed { background: #79c0ff; animation: pulse-confirmed 2.2s ease-in-out infinite; }
+    .s-transit   { background: #D4641E; animation: pulse-transit   2.2s ease-in-out infinite; }
+    .s-partial   { background: #f0c000; animation: pulse-partial   2.2s ease-in-out infinite; }
+    .s-default   { background: #8b949e; box-shadow: 0 0 4px 1px rgba(139,148,158,0.35), 0 0 0 2px rgba(125,133,144,0.18); }
+
+    td.status-cell { cursor: pointer; }
+    td.status-cell:hover .status-dot { transform: scale(1.4); }
+
+    .status-picker {
+      position: fixed;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.55);
+      z-index: 300;
+      padding: 4px;
+      min-width: 148px;
+    }
+    .status-picker-opt {
+      display: flex; align-items: center; gap: 8px;
+      width: 100%; padding: 7px 10px;
+      background: transparent; border: none;
+      color: var(--text); font-size: 13px;
+      cursor: pointer; border-radius: 5px;
+      text-align: left; font-family: inherit;
+    }
+    .status-picker-opt:hover { background: var(--row-hover); }
+    .status-picker-opt.s-active { font-weight: 700; }
 
     td.actions { text-align: right; white-space: nowrap; }
     td.actions .btn { margin-left: 4px; }
@@ -477,6 +528,7 @@
         <div class="search-box">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
           <input type="text" id="globalSearch" placeholder="Search across all columns...">
+          <button class="search-clear" id="searchClear" title="Clear search">&times;</button>
         </div>
         <button class="btn" id="reloadBtn" title="Reload from sheet">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10"/><path d="M20.49 15a9 9 0 01-14.85 3.36L1 14"/></svg>
@@ -730,14 +782,14 @@
   });
 
   // Columns whose text should wrap instead of truncate with ellipsis.
-  const WRAP_COLUMNS_RAW = ['REMARKS', 'STATUS'];
+  const WRAP_COLUMNS_RAW = ['REMARKS'];
   const WRAP_COLUMNS = {};
   WRAP_COLUMNS_RAW.forEach(function (k) {
     WRAP_COLUMNS[k.toUpperCase().replace(/[^A-Z0-9]/g, '')] = true;
   });
 
   // Columns hidden from the table view (data and edit form are unaffected).
-  const HIDDEN_COLUMNS_RAW = ['QTY RECEIVED', 'ITEM DESCRIPTION'];
+  const HIDDEN_COLUMNS_RAW = ['QTY RECEIVED'];
   const HIDDEN_COLUMNS = {};
   HIDDEN_COLUMNS_RAW.forEach(function (k) {
     HIDDEN_COLUMNS[k.toUpperCase().replace(/[^A-Z0-9]/g, '')] = true;
@@ -766,6 +818,14 @@
     CENTER_COLUMNS[k.toUpperCase().replace(/[^A-Z0-9]/g, '')] = true;
   });
 
+  const STATUS_PICKER_OPTIONS = [
+    { value: 'Received',            cls: 's-received',  label: 'Received'            },
+    { value: 'Partially Received',  cls: 's-partial',   label: 'Partially Received'  },
+    { value: 'In-Transit',          cls: 's-transit',   label: 'In-Transit'          },
+    { value: 'Confirmed',           cls: 's-confirmed', label: 'Confirmed'           },
+    { value: '',                    cls: 's-default',   label: 'None'                },
+  ];
+
   // User-dragged column widths — persisted to localStorage
   const COL_WIDTHS_KEY = 'po_webapp_col_widths_v1';
   let savedColWidths = {};
@@ -784,9 +844,20 @@
     const w = factor ? Math.round(DEFAULT_COL_MAX_WIDTH * factor) : DEFAULT_COL_WIDTH;
     return ' style="width:' + w + 'px;' + align + '"';
   }
+  function statusClass(val) {
+    const v = String(val || '').trim().toUpperCase().replace(/[\s\-_]+/g, '');
+    if (v === 'RECEIVED')                          return 's-received';
+    if (v === 'CONFIRMED')                         return 's-confirmed';
+    if (v === 'INTRANSIT' || v === 'TRANSIT')      return 's-transit';
+    if (v === 'PARTIALLYRECEIVED' || v === 'PARTIAL') return 's-partial';
+    return 's-default';
+  }
   function colCellHtml(header, value) {
     const key = String(header || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
     const escaped = escapeHtml(value);
+    if (key === 'STATUS') {
+      return escaped ? '<span class="status-dot ' + statusClass(value) + '" title="' + escaped + '"></span>' : '';
+    }
     if (WRAP_COLUMNS[key]) {
       return '<div style="white-space:normal;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word;">' + escaped + '</div>';
     }
@@ -796,6 +867,17 @@
   // =====================================================================
   // ============ Sidebar nav + module switching =========================
   // =====================================================================
+  // Strips STATUS=Received rows from the purchased module so items that have
+  // been copied to RECEIVED never reappear in Purchased Orders after a refresh.
+  function excludeReceived(moduleId, headers, rows) {
+    if (moduleId !== 'purchased') return rows;
+    const statusHeader = headers.find(function (h) {
+      return h.toUpperCase().replace(/[^A-Z0-9]/g, '') === 'STATUS';
+    });
+    if (!statusHeader) return rows;
+    return rows.filter(function (r) { return r[statusHeader] !== 'Received'; });
+  }
+
   document.querySelectorAll('.nav-btn').forEach(function (btn) {
     btn.addEventListener('click', function () { switchModule(btn.dataset.module); });
   });
@@ -822,7 +904,9 @@
     $('tabInfo').innerHTML = 'Tab: <span class="pill">' + escapeHtml(resolvedTab) + '</span>';
 
     // restore search box value for this module
-    $('globalSearch').value = activeMod().globalQuery || '';
+    const _sq = activeMod().globalQuery || '';
+    $('globalSearch').value = _sq;
+    $('globalSearch').closest('.search-box').classList.toggle('has-value', _sq.length > 0);
 
     // load if needed
     const m = activeMod();
@@ -849,7 +933,7 @@
       const cached = loadCachedData(moduleId);
       if (cached && cached.headers && cached.headers.length) {
         m.headers = cached.headers;
-        m.rows    = cached.rows || [];
+        m.rows    = excludeReceived(moduleId, cached.headers, cached.rows || []);
         m.sheetNameActual = cached.sheetName || '';
         m.syncedAt = cached.cachedAt || null;
         m.loaded = true;
@@ -902,7 +986,7 @@
           return;
         }
         m.headers = result.headers || [];
-        m.rows    = result.rows    || [];
+        m.rows    = excludeReceived(moduleId, result.headers || [], result.rows || []);
         m.sheetNameActual = result.sheetName || '';
         m.loaded  = true;
         saveCachedData(moduleId, m.headers, m.rows, m.sheetNameActual);
@@ -976,8 +1060,8 @@
       });
     }
 
-    // Sort: respect the user's chosen column; date descending by default; fall back to row order.
-    const sortKey = m.sortKey || dateCol || '__rowIndex';
+    // Sort: respect the user's chosen column; default to sheet row order (newest last-filled row first).
+    const sortKey = m.sortKey || '__rowIndex';
     const sortDir = m.sortKey ? m.sortDir : -1;
     if (sortKey) {
       result.sort(function (a, b) {
@@ -1033,28 +1117,38 @@
     let html = '<div class="table-wrap"><table style="min-width:' + totalMinWidth + 'px"><thead>';
     html += '<tr>';
     headers.forEach(function (h) {
-      html += '<th' + colStyle(h, true) + ' data-col="' + escapeHtml(h) + '">' + escapeHtml(h) + '<div class="col-resizer" data-resizer="' + escapeHtml(h) + '"></div></th>';
+      const _thKey = h.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      const _thCls = _thKey === 'ITEMCODE' ? ' class="col-itemcode"' : '';
+      html += '<th' + colStyle(h, true) + _thCls + ' data-col="' + escapeHtml(h) + '">' + escapeHtml(h) + '<div class="col-resizer" data-resizer="' + escapeHtml(h) + '"></div></th>';
     });
-    html += '<th class="spacer-col"></th>';
     html += '<th class="actions-col">Actions</th>';
     html += '</tr>';
 
     html += '</thead><tbody>';
 
     if (rows.length === 0) {
-      html += '<tr><td colspan="' + (headers.length + 2) + '" class="empty-state">No ' + escapeHtml(cfg.recordType) + ' match your filters.</td></tr>';
+      html += '<tr><td colspan="' + (headers.length + 1) + '" class="empty-state">No ' + escapeHtml(cfg.recordType) + ' match your filters.</td></tr>';
     } else {
       rows.forEach(function (row) {
         html += '<tr>';
         headers.forEach(function (h) {
           const v = row[h];
-          html += '<td' + colStyle(h, false) + ' title="' + escapeHtml(v) + '">' + colCellHtml(h, v) + '</td>';
+          const hKey = h.toUpperCase().replace(/[^A-Z0-9]/g, '');
+          if (hKey === 'STATUS') {
+            html += '<td' + colStyle(h, false) + ' class="status-cell" data-row="' + row.__rowIndex + '" data-field="' + escapeHtml(h) + '" title="Click to change status">' + colCellHtml(h, v) + '</td>';
+          } else {
+            const _tdCls = hKey === 'ITEMCODE' ? ' class="col-itemcode"' : '';
+            html += '<td' + colStyle(h, false) + _tdCls + ' title="' + escapeHtml(v) + '">' + colCellHtml(h, v) + '</td>';
+          }
         });
-        html += '<td class="spacer"></td>';
-        html += '<td class="actions">';
-        html += '<button class="btn btn-icon" data-edit="' + row.__rowIndex + '" title="Edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>';
-        html += '<button class="btn btn-icon btn-danger" data-delete="' + row.__rowIndex + '" title="Delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg></button>';
-        html += '</td></tr>';
+        if (row.__rowIndex < 0) {
+          html += '<td class="actions"><span style="font-size:11px;color:var(--muted)">Syncing…</span></td></tr>';
+        } else {
+          html += '<td class="actions">';
+          html += '<button class="btn btn-icon" data-edit="' + row.__rowIndex + '" title="Edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>';
+          html += '<button class="btn btn-icon btn-danger" data-delete="' + row.__rowIndex + '" title="Delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg></button>';
+          html += '</td></tr>';
+        }
       });
     }
     html += '</tbody></table></div>';
@@ -1108,6 +1202,13 @@
         }
       });
     });
+
+    document.querySelectorAll('td.status-cell').forEach(function (td) {
+      td.addEventListener('click', function (e) {
+        e.stopPropagation();
+        showStatusPicker(td, parseInt(td.dataset.row, 10), td.dataset.field);
+      });
+    });
   }
 
   // =====================================================================
@@ -1115,6 +1216,15 @@
   // =====================================================================
   $('globalSearch').addEventListener('input', function (e) {
     activeMod().globalQuery = e.target.value;
+    e.target.closest('.search-box').classList.toggle('has-value', e.target.value.length > 0);
+    applyFiltersAndRender();
+  });
+  $('searchClear').addEventListener('click', function () {
+    const inp = $('globalSearch');
+    inp.value = '';
+    activeMod().globalQuery = '';
+    inp.closest('.search-box').classList.remove('has-value');
+    inp.focus();
     applyFiltersAndRender();
   });
   $('reloadBtn').addEventListener('click', function () {
@@ -1135,12 +1245,22 @@
       showToast('No columns in this tab. Add headers in row 1 of the sheet first.', 'error');
       return;
     }
+    const STATUS_OPTIONS = ['', 'Received', 'Partially Received', 'In-Transit', 'Confirmed'];
     let formHtml = '';
     headers.forEach(function (h) {
+      if (!String(h || '').trim()) return;
+      if (HIDDEN_COLUMNS[h.toUpperCase().replace(/[^A-Z0-9]/g, '')]) return;
       const v = (isEdit && row && row[h] !== undefined && row[h] !== null) ? row[h] : '';
-      const isLong = String(v).length > 60 || /note|comment|description|remark/i.test(h);
+      const key = h.toUpperCase().replace(/[^A-Z0-9]/g, '');
       formHtml += '<div class="form-field"><label>' + escapeHtml(h) + '</label>';
-      if (isLong) {
+      if (key === 'STATUS') {
+        formHtml += '<select data-field="' + escapeHtml(h) + '" style="width:100%;padding:8px 10px;background:var(--panel-2);color:var(--text);border:1px solid var(--border);border-radius:6px;font-size:13px;outline:none;font-family:inherit;">';
+        STATUS_OPTIONS.forEach(function (opt) {
+          const sel = String(v).trim().toLowerCase() === opt.toLowerCase() ? ' selected' : '';
+          formHtml += '<option value="' + escapeHtml(opt) + '"' + sel + '>' + (opt || '— Select status —') + '</option>';
+        });
+        formHtml += '</select>';
+      } else if (String(v).length > 60 || /note|comment|description|remark/i.test(h)) {
         formHtml += '<textarea data-field="' + escapeHtml(h) + '">' + escapeHtml(v) + '</textarea>';
       } else {
         formHtml += '<input type="text" data-field="' + escapeHtml(h) + '" value="' + escapeHtml(v) + '">';
@@ -1170,9 +1290,6 @@
     _attachEsc(closeModal);
     $('modalClose').addEventListener('click', closeModal);
     $('modalCancel').addEventListener('click', closeModal);
-    $('modalBackdrop').addEventListener('click', function (e) {
-      if (e.target.id === 'modalBackdrop') closeModal();
-    });
     $('modalSave').addEventListener('click', function () {
       const data = {};
       document.querySelectorAll('[data-field]').forEach(function (inp) {
@@ -1181,6 +1298,156 @@
       if (isEdit) saveEdit(row.__rowIndex, data, saveText);
       else        saveNew(data, saveText);
     });
+
+    // Item Code autocomplete + autofill
+    (function () {
+      // Remove any orphan dropdown from a previous modal
+      const _old = document.getElementById('itemCodeAC');
+      if (_old) _old.remove();
+
+      var _icEl = null, _idEl = null;
+      document.querySelectorAll('[data-field]').forEach(function (el) {
+        const k = el.dataset.field.toUpperCase().replace(/[^A-Z0-9]/g, '');
+        if (k === 'ITEMCODE') _icEl = el;
+        if (k === 'ITEMDESCRIPTION') _idEl = el;
+      });
+      if (!_icEl || !_idEl) return;
+
+      // Small status line under the ITEM CODE field
+      const status = document.createElement('div');
+      status.style.cssText = 'font-size:11px;margin-top:4px;color:var(--muted);';
+      status.textContent = '⏳ Loading ITEMCODES…';
+      _icEl.parentNode.insertBefore(status, _icEl.nextSibling);
+
+      // Dropdown panel (attached to body so it can overflow the modal)
+      const dd = document.createElement('div');
+      dd.id = 'itemCodeAC';
+      dd.style.cssText = 'position:fixed;background:var(--panel);border:1px solid var(--border);' +
+                         'border-radius:6px;box-shadow:0 6px 18px rgba(0,0,0,0.5);' +
+                         'max-height:240px;overflow-y:auto;z-index:300;font-size:13px;display:none;';
+      document.body.appendChild(dd);
+
+      let entries = [];      // [{code, desc, descU}]
+      let visible = [];      // current filtered slice
+      let activeIdx = -1;
+
+      function position() {
+        const r = _icEl.getBoundingClientRect();
+        dd.style.top = (r.bottom + 2) + 'px';
+        dd.style.left = r.left + 'px';
+        dd.style.width = r.width + 'px';
+      }
+      function hide() { dd.style.display = 'none'; activeIdx = -1; }
+      function pick(s) {
+        _icEl.value = s.code;
+        _idEl.value = s.desc;
+        hide();
+      }
+      function highlight() {
+        dd.querySelectorAll('.ac-item').forEach(function (el, i) {
+          el.style.background = (i === activeIdx) ? 'var(--row-hover)' : '';
+        });
+      }
+      function render() {
+        if (visible.length === 0) { hide(); return; }
+        let html = '';
+        visible.forEach(function (s, i) {
+          const bg = (i === activeIdx) ? 'background:var(--row-hover);' : '';
+          html += '<div class="ac-item" data-i="' + i + '" ' +
+                  'style="padding:6px 10px;cursor:pointer;border-bottom:1px solid var(--border);' + bg + '">' +
+                    '<div style="font-weight:700;color:#a5c8ff">' + escapeHtml(s.code) + '</div>' +
+                    '<div style="font-size:11px;color:var(--muted);white-space:normal">' + escapeHtml(s.desc) + '</div>' +
+                  '</div>';
+        });
+        dd.innerHTML = html;
+        position();
+        dd.style.display = 'block';
+        dd.querySelectorAll('.ac-item').forEach(function (el) {
+          el.addEventListener('mousedown', function (e) {
+            e.preventDefault(); // keep focus on input — don't fire blur first
+            pick(visible[parseInt(el.dataset.i, 10)]);
+          });
+          el.addEventListener('mouseenter', function () {
+            activeIdx = parseInt(el.dataset.i, 10);
+            highlight();
+          });
+        });
+      }
+      function filter(q) {
+        q = q.trim().toUpperCase();
+        if (!q) return [];
+        const startsCode = [], inCode = [], inDesc = [];
+        for (let i = 0; i < entries.length; i++) {
+          const e = entries[i];
+          if (e.code.indexOf(q) === 0)        startsCode.push(e);
+          else if (e.code.indexOf(q) !== -1)  inCode.push(e);
+          else if (e.descU.indexOf(q) !== -1) inDesc.push(e);
+          if (startsCode.length >= 8) break;
+        }
+        return startsCode.concat(inCode, inDesc).slice(0, 8);
+      }
+
+      fetchItemCodes(function (map) {
+        const count = Object.keys(map).length;
+        if (count === 0) {
+          status.style.color = 'var(--danger)';
+          status.textContent = '✖ ITEMCODES not loaded — check tab exists & redeploy Apps Script';
+          return;
+        }
+        entries = Object.keys(map).map(function (c) {
+          return { code: c, desc: map[c], descU: String(map[c]).toUpperCase() };
+        });
+        status.textContent = '↓ Type to search ' + count + ' item codes (or part of description)';
+
+        _icEl.addEventListener('input', function () {
+          visible = filter(_icEl.value);
+          activeIdx = visible.length > 0 ? 0 : -1;
+          render();
+          // exact-match autofill (paste / full code typed)
+          const exact = map[_icEl.value.trim().toUpperCase()];
+          if (exact !== undefined && exact !== '') _idEl.value = exact;
+        });
+        _icEl.addEventListener('focus', function () {
+          if (_icEl.value.trim()) {
+            visible = filter(_icEl.value);
+            activeIdx = visible.length > 0 ? 0 : -1;
+            render();
+          }
+        });
+        _icEl.addEventListener('blur', function () {
+          setTimeout(hide, 150); // delay so dropdown mousedown can resolve
+        });
+        _icEl.addEventListener('keydown', function (e) {
+          if (dd.style.display === 'none') return;
+          if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            activeIdx = Math.min(visible.length - 1, activeIdx + 1);
+            highlight();
+            const item = dd.querySelector('.ac-item[data-i="' + activeIdx + '"]');
+            if (item) item.scrollIntoView({ block: 'nearest' });
+          } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            activeIdx = Math.max(0, activeIdx - 1);
+            highlight();
+            const item = dd.querySelector('.ac-item[data-i="' + activeIdx + '"]');
+            if (item) item.scrollIntoView({ block: 'nearest' });
+          } else if (e.key === 'Enter' && activeIdx >= 0) {
+            e.preventDefault();
+            pick(visible[activeIdx]);
+          } else if (e.key === 'Tab' && activeIdx >= 0) {
+            // Pick the highlighted item, then let Tab continue naturally
+            // to move focus to the next field.
+            pick(visible[activeIdx]);
+          } else if (e.key === 'Escape') {
+            e.preventDefault();
+            e.stopPropagation(); // don't bubble to modal-close handler
+            hide();
+          }
+        });
+        window.addEventListener('scroll', function () { if (dd.style.display !== 'none') position(); }, true);
+        window.addEventListener('resize', function () { if (dd.style.display !== 'none') position(); });
+      });
+    })();
   }
 
   let _escHandler = null;
@@ -1192,11 +1459,56 @@
   function _detachEsc() {
     if (_escHandler) { document.removeEventListener('keydown', _escHandler); _escHandler = null; }
   }
-  function closeModal() { _detachEsc(); $('modalMount').innerHTML = ''; }
+  function closeModal() {
+    _detachEsc();
+    $('modalMount').innerHTML = '';
+    const _ac = document.getElementById('itemCodeAC');
+    if (_ac) _ac.remove();
+  }
+
+  // =====================================================================
+  // ============ Item Codes lookup cache ================================
+  // =====================================================================
+  // Fetched once per page load from the ITEMCODES backend tab.
+  // Callbacks queue up while the fetch is in-flight so only one request fires.
+  let _itemCodesMap = null;      // null = not yet loaded; {} = loaded but empty or failed
+  let _itemCodesLoading = false;
+  let _itemCodesCbs = [];
+  let _itemCodesRetryAfter = 0;  // epoch ms — don't retry before this
+
+  function fetchItemCodes(cb) {
+    if (_itemCodesMap !== null) { cb(_itemCodesMap); return; }
+    // If a previous attempt failed, honour the back-off window
+    if (!_itemCodesLoading && Date.now() < _itemCodesRetryAfter) { cb({}); return; }
+    _itemCodesCbs.push(cb);
+    if (_itemCodesLoading) return;
+    _itemCodesLoading = true;
+    google.script.run
+      .withSuccessHandler(function (res) {
+        _itemCodesLoading = false;
+        if (res && res.ok && res.map && Object.keys(res.map).length > 0) {
+          _itemCodesMap = res.map;         // permanent cache — fetch succeeded
+        } else {
+          _itemCodesRetryAfter = Date.now() + 20000; // retry in 20 s
+        }
+        var _map = _itemCodesMap || {};
+        _itemCodesCbs.forEach(function (fn) { fn(_map); });
+        _itemCodesCbs = [];
+      })
+      .withFailureHandler(function () {
+        _itemCodesLoading = false;
+        _itemCodesRetryAfter = Date.now() + 20000;   // retry in 20 s
+        _itemCodesCbs.forEach(function (fn) { fn({}); });
+        _itemCodesCbs = [];
+      })
+      .getItemCodes();
+  }
 
   function saveNew(data, saveText) {
     const tab = tabFor(STATE.activeModule);
     const cfg = activeCfg();
+    const m = activeMod();
+    const moduleId = STATE.activeModule;
     $('modalSave').disabled = true;
     $('modalSave').textContent = 'Saving...';
     google.script.run
@@ -1204,8 +1516,13 @@
         if (res && res.success) {
           showToast(cfg.label + ' added', 'success');
           closeModal();
-          activeMod().loaded = false;
-          loadActiveModule();
+          // Optimistic insert: add the row immediately with a temp negative index.
+          // silentRefresh replaces it with real server data (including the true __rowIndex).
+          const tempRow = Object.assign({ __rowIndex: -(Date.now() % 1e9) }, data);
+          m.rows.push(tempRow);
+          saveCachedData(moduleId, m.headers, m.rows, m.sheetNameActual);
+          if (STATE.activeModule === moduleId) applyFiltersAndRender();
+          silentRefresh();
         } else {
           showToast('Failed: ' + (res && res.error ? res.error : 'unknown'), 'error');
           $('modalSave').disabled = false;
@@ -1223,27 +1540,49 @@
   function saveEdit(rowIndex, data, saveText) {
     const tab = tabFor(STATE.activeModule);
     const cfg = activeCfg();
-    $('modalSave').disabled = true;
-    $('modalSave').textContent = 'Saving...';
-    google.script.run
+    const m = activeMod();
+    const moduleId = STATE.activeModule;
+
+    // Optimistic update: patch in-memory row and re-render immediately.
+    const rowRef = m.rows.find(function (r) { return r.__rowIndex === rowIndex; });
+    const snapshot = rowRef ? Object.assign({}, rowRef) : null;
+    if (rowRef) Object.assign(rowRef, data);
+    closeModal();
+    if (STATE.activeModule === moduleId) applyFiltersAndRender();
+
+    const savedStatus = Object.keys(data).reduce(function (found, k) {
+      return found || (k.toUpperCase().replace(/[^A-Z0-9]/g, '') === 'STATUS' ? data[k] : null);
+    }, null);
+
+    var _saveRunner = google.script.run
       .withSuccessHandler(function (res) {
         if (res && res.success) {
           showToast(cfg.label + ' updated', 'success');
-          closeModal();
-          activeMod().loaded = false;
-          loadActiveModule();
+          if (savedStatus === 'Received') {
+            m.rows = m.rows.filter(function (r) { return r.__rowIndex !== rowIndex; });
+            if (STATE.activeModule === moduleId) applyFiltersAndRender();
+            prefetchModule('received');
+          }
+          saveCachedData(moduleId, m.headers, m.rows, m.sheetNameActual);
+          markSynced();
         } else {
+          // Rollback optimistic change
+          if (rowRef && snapshot) Object.assign(rowRef, snapshot);
+          if (STATE.activeModule === moduleId) applyFiltersAndRender();
           showToast('Failed: ' + (res && res.error ? res.error : 'unknown'), 'error');
-          $('modalSave').disabled = false;
-          $('modalSave').textContent = saveText;
         }
       })
       .withFailureHandler(function (err) {
+        // Rollback optimistic change
+        if (rowRef && snapshot) Object.assign(rowRef, snapshot);
+        if (STATE.activeModule === moduleId) applyFiltersAndRender();
         showToast('Failed: ' + (err.message || err), 'error');
-        $('modalSave').disabled = false;
-        $('modalSave').textContent = saveText;
-      })
-      .updateRow(tab, rowIndex, data);
+      });
+    if (savedStatus === 'Received') {
+      _saveRunner.moveToReceived(tab, rowIndex, data, tabFor('received'));
+    } else {
+      _saveRunner.updateRow(tab, rowIndex, data);
+    }
   }
 
   function deleteCurrentRow(rowIndex) {
@@ -1263,6 +1602,102 @@
         showToast('Failed: ' + (err.message || err), 'error');
       })
       .deleteRow(tab, rowIndex);
+  }
+
+  // =====================================================================
+  // ============ Inline status picker ===================================
+  // =====================================================================
+  function showStatusPicker(anchorEl, rowIndex, fieldName) {
+    closeStatusPicker();
+    const m = activeMod();
+    const rowRef = m.rows.find(function (r) { return r.__rowIndex === rowIndex; });
+    const currentVal = rowRef ? String(rowRef[fieldName] || '').trim().toLowerCase() : '';
+
+    const picker = document.createElement('div');
+    picker.className = 'status-picker';
+    picker.id = 'statusPicker';
+
+    STATUS_PICKER_OPTIONS.forEach(function (opt) {
+      const btn = document.createElement('button');
+      btn.className = 'status-picker-opt' + (currentVal === opt.value.toLowerCase() ? ' s-active' : '');
+      btn.innerHTML = '<span class="status-dot ' + opt.cls + '"></span>' + escapeHtml(opt.label);
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        closeStatusPicker();
+        quickSetStatus(rowIndex, fieldName, opt.value);
+      });
+      picker.appendChild(btn);
+    });
+
+    document.body.appendChild(picker);
+
+    const rect = anchorEl.getBoundingClientRect();
+    const ph = picker.offsetHeight || 152;
+    const top = (window.innerHeight - rect.bottom >= ph || rect.top < ph)
+      ? rect.bottom + 4
+      : rect.top - ph - 4;
+    picker.style.top  = Math.max(4, top) + 'px';
+    picker.style.left = Math.min(rect.left, window.innerWidth - 160) + 'px';
+
+    setTimeout(function () {
+      document.addEventListener('click', closeStatusPicker, { once: true });
+      document.addEventListener('keydown', _onPickerEsc);
+    }, 0);
+  }
+
+  function _onPickerEsc(e) {
+    if (e.key === 'Escape') { closeStatusPicker(); }
+  }
+
+  function closeStatusPicker() {
+    const p = document.getElementById('statusPicker');
+    if (p) p.remove();
+    document.removeEventListener('keydown', _onPickerEsc);
+  }
+
+  function quickSetStatus(rowIndex, fieldName, newValue) {
+    const m = activeMod();
+    const moduleId = STATE.activeModule;
+    const tab = tabFor(moduleId);
+
+    const rowRef = m.rows.find(function (r) { return r.__rowIndex === rowIndex; });
+    if (!rowRef) return;
+    const snapshot = Object.assign({}, rowRef);
+    rowRef[fieldName] = newValue;
+    if (STATE.activeModule === moduleId) applyFiltersAndRender();
+
+    const data = {};
+    m.headers.forEach(function (h) {
+      if (String(h || '').trim()) data[h] = rowRef[h] !== undefined ? rowRef[h] : '';
+    });
+
+    var _qRunner = google.script.run
+      .withSuccessHandler(function (res) {
+        if (res && res.success) {
+          showToast('Status updated', 'success');
+          if (newValue === 'Received') {
+            m.rows = m.rows.filter(function (r) { return r.__rowIndex !== rowIndex; });
+            if (STATE.activeModule === moduleId) applyFiltersAndRender();
+            prefetchModule('received');
+          }
+          saveCachedData(moduleId, m.headers, m.rows, m.sheetNameActual);
+          markSynced();
+        } else {
+          Object.assign(rowRef, snapshot);
+          if (STATE.activeModule === moduleId) applyFiltersAndRender();
+          showToast('Failed: ' + (res && res.error ? res.error : 'unknown'), 'error');
+        }
+      })
+      .withFailureHandler(function (err) {
+        Object.assign(rowRef, snapshot);
+        if (STATE.activeModule === moduleId) applyFiltersAndRender();
+        showToast('Failed: ' + (err.message || err), 'error');
+      });
+    if (newValue === 'Received') {
+      _qRunner.moveToReceived(tab, rowIndex, data, tabFor('received'));
+    } else {
+      _qRunner.updateRow(tab, rowIndex, data);
+    }
   }
 
   // =====================================================================
@@ -1591,7 +2026,7 @@
       .withSuccessHandler(function (result) {
         if (!result || result.error) return; // ignore errors silently; user can Reload manually
         m.headers = result.headers || [];
-        m.rows    = result.rows    || [];
+        m.rows    = excludeReceived(moduleId, result.headers || [], result.rows || []);
         m.sheetNameActual = result.sheetName || '';
         m.loaded  = true;
         saveCachedData(moduleId, m.headers, m.rows, m.sheetNameActual);
@@ -1602,6 +2037,24 @@
         }
       })
       .withFailureHandler(function () { /* ignore silently */ })
+      .getRows(tab);
+  }
+
+  function prefetchModule(targetModuleId) {
+    const m = STATE.modules[targetModuleId];
+    if (!m || m.loading) return;
+    const tab = tabFor(targetModuleId);
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (!result || result.error) return;
+        m.headers = result.headers || [];
+        m.rows = excludeReceived(targetModuleId, result.headers || [], result.rows || []);
+        m.sheetNameActual = result.sheetName || '';
+        m.loaded = true;
+        saveCachedData(targetModuleId, m.headers, m.rows, m.sheetNameActual);
+        if (STATE.activeModule === targetModuleId) applyFiltersAndRender();
+      })
+      .withFailureHandler(function () {})
       .getRows(tab);
   }
 
@@ -1629,6 +2082,7 @@
   loadConfig();
   switchModule('purchased'); // triggers loadActiveModule on first render
   startAutoRefresh();
+  fetchItemCodes(function () {}); // pre-warm item codes cache in background
   </script>
   </body>
   </html>

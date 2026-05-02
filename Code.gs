@@ -184,6 +184,50 @@ function updateRow(sheetName, rowIndex, data) {
 }
 
 /**
+ * Moves a row from sourceTab to targetTab (called when STATUS → "Received").
+ * 1. Writes the updated data back to the source row.
+ * 2. Appends a copy to targetTab, mapped by that sheet's column headers.
+ * 3. Deletes the source row so it no longer appears in PURCHASED_ORDER.
+ * Both caches are invalidated so the next getRows() call is fresh.
+ */
+function moveToReceived(sourceTab, rowIndex, data, targetTab) {
+  try {
+    const srcSheet = getSheet_(sourceTab);
+    const tgtSheet = getSheet_(targetTab);
+
+    // Write the updated row back to the source sheet first.
+    const srcHeaders = srcSheet.getRange(1, 1, 1, srcSheet.getLastColumn()).getValues()[0];
+    const srcRow = srcHeaders.map(function (h) {
+      const v = data[h];
+      return (v === undefined || v === null) ? '' : v;
+    });
+    srcSheet.getRange(rowIndex, 1, 1, srcHeaders.length).setValues([srcRow]);
+
+    // Append a copy to the target (RECEIVED) sheet, mapped by its own headers.
+    // If the target sheet has no headers yet, seed it with the source headers first.
+    let tgtHeaders;
+    const tgtLastCol = tgtSheet.getLastColumn();
+    if (tgtLastCol < 1) {
+      tgtHeaders = srcHeaders;
+      tgtSheet.appendRow(tgtHeaders);
+    } else {
+      tgtHeaders = tgtSheet.getRange(1, 1, 1, tgtLastCol).getValues()[0];
+    }
+    const tgtRow = tgtHeaders.map(function (h) {
+      const v = data[h];
+      return (v === undefined || v === null) ? '' : v;
+    });
+    tgtSheet.appendRow(tgtRow);
+
+    invalidateCache_(sourceTab);
+    invalidateCache_(targetTab);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
+
+/**
  * Deletes a row from a tab. `rowIndex` is the 1-based sheet row.
  */
 function deleteRow(sheetName, rowIndex) {
@@ -194,5 +238,37 @@ function deleteRow(sheetName, rowIndex) {
     return { success: true };
   } catch (e) {
     return { success: false, error: e.toString() };
+  }
+}
+
+/**
+ * Returns all item code → description pairs from the ITEMCODES tab.
+ * Expects row 1 to be a header row; data starts at row 2.
+ * Col A = Item Code, Col B = Description.
+ * Result is cached in CacheService for CACHE_TTL_SECONDS.
+ */
+function getItemCodes() {
+  try {
+    const cache = CacheService.getScriptCache();
+    const cacheKey = 'itemcodes_map';
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      try { return JSON.parse(cached); } catch (e) { /* fall through */ }
+    }
+    const sheet = getSheet_('ITEMCODES');
+    const lastRow = sheet.getLastRow();
+    const result = { ok: true, map: {} };
+    if (lastRow >= 2) {
+      const values = sheet.getRange(2, 1, lastRow - 1, 2).getValues();
+      values.forEach(function (row) {
+        const code = String(row[0] || '').trim();
+        const desc = String(row[1] || '').trim();
+        if (code) result.map[code.toUpperCase()] = desc;
+      });
+    }
+    try { cache.put(cacheKey, JSON.stringify(result), CACHE_TTL_SECONDS); } catch (e) {}
+    return result;
+  } catch (e) {
+    return { ok: false, error: e.toString() };
   }
 }
