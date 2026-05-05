@@ -2670,7 +2670,7 @@
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
 
-      let _drawing = false, _lx = 0, _ly = 0;
+      let _drawing = false, _lx = 0, _ly = 0, _midX = 0, _midY = 0;
 
       function _pt(e) {
         const r = canvas.getBoundingClientRect();
@@ -2682,20 +2682,35 @@
       function _start(e) {
         e.preventDefault();
         _drawing = true;
-        const p = _pt(e); _lx = p.x; _ly = p.y;
+        const p = _pt(e);
+        _lx = p.x; _ly = p.y; _midX = p.x; _midY = p.y;
         ctx.beginPath();
-        ctx.arc(_lx, _ly, 1.2, 0, Math.PI * 2);
-        ctx.fillStyle = '#111827';
+        ctx.arc(_lx, _ly, ctx.lineWidth / 2, 0, Math.PI * 2);
+        ctx.fillStyle = ctx.strokeStyle;
         ctx.fill();
       }
       function _move(e) {
         if (!_drawing) return;
         e.preventDefault();
         const p = _pt(e);
-        ctx.beginPath(); ctx.moveTo(_lx, _ly); ctx.lineTo(p.x, p.y); ctx.stroke();
+        const newMidX = (_lx + p.x) / 2;
+        const newMidY = (_ly + p.y) / 2;
+        ctx.beginPath();
+        ctx.moveTo(_midX, _midY);
+        ctx.quadraticCurveTo(_lx, _ly, newMidX, newMidY);
+        ctx.stroke();
+        _midX = newMidX; _midY = newMidY;
         _lx = p.x; _ly = p.y;
       }
-      function _stop() { _drawing = false; }
+      function _stop() {
+        if (!_drawing) return;
+        _drawing = false;
+        // flush the last segment to the final point
+        ctx.beginPath();
+        ctx.moveTo(_midX, _midY);
+        ctx.quadraticCurveTo(_lx, _ly, _lx, _ly);
+        ctx.stroke();
+      }
 
       canvas.addEventListener('mousedown', _start);
       canvas.addEventListener('mousemove', _move);
