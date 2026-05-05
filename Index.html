@@ -113,6 +113,19 @@
         position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
         width: 16px; height: 16px; color: var(--muted);
       }
+      /* Global search autocomplete dropdown */
+      .global-search-ac {
+        position: absolute; top: calc(100% + 4px); left: 0;
+        min-width: 260px; width: max-content; max-width: 360px;
+        background: var(--panel); border: 1px solid var(--border);
+        border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,0.55);
+        max-height: 220px; overflow-y: auto; z-index: 400; font-size: 13px;
+      }
+      .global-ac-item { padding: 6px 10px; cursor: pointer; border-bottom: 1px solid var(--border); }
+      .global-ac-item:last-child { border-bottom: none; }
+      .global-ac-item:hover, .global-ac-item.ac-active { background: var(--row-hover); }
+      .global-ac-col { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
+      .global-ac-val { color: var(--text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
       .btn {
         padding: 8px 14px;
@@ -608,6 +621,68 @@
         box-shadow: 0 2px 6px rgba(0,0,0,0.4);
         white-space: nowrap;
       }
+
+      /* ============ Shipment Selector Bar ============ */
+      .shipment-bar {
+        display: flex; align-items: center; gap: 10px;
+        padding: 8px 0 10px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 10px;
+        flex-wrap: wrap;
+      }
+      .shipment-bar-label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+      .shipment-select {
+        padding: 6px 10px;
+        background: var(--panel-2); color: var(--text);
+        border: 1px solid var(--border); border-radius: 6px;
+        font-size: 13px; outline: none; font-family: inherit;
+        cursor: pointer; min-width: 170px;
+      }
+      .shipment-select:focus { border-color: var(--accent); }
+      .shipment-bar-count { font-size: 11px; color: var(--muted); }
+
+      /* Invoice sub-tab bar */
+      .invoice-tab-bar { display: flex; align-items: center; gap: 6px; padding: 8px 0 10px; border-bottom: 1px solid var(--border); margin-bottom: 10px; flex-wrap: wrap; }
+      .invoice-tab-pill {
+        padding: 5px 14px; border-radius: 20px; font-size: 12px; font-weight: 600;
+        border: 1px solid var(--border); background: var(--panel-2); color: var(--muted);
+        cursor: pointer; transition: all 0.15s; white-space: nowrap;
+      }
+      .invoice-tab-pill:hover { background: var(--panel); color: var(--text); border-color: var(--accent); }
+      .invoice-tab-pill.active { background: var(--accent-2); color: #fff; border-color: var(--accent-2); }
+
+      /* Invoice inline search + autocomplete */
+      .invoice-search-wrap { position: relative; margin-left: auto; display: flex; align-items: center; }
+      .invoice-search-input {
+        width: 210px; padding: 6px 26px 6px 28px;
+        background: var(--panel-2); border: 1px solid var(--border);
+        color: var(--text); border-radius: 6px; font-size: 13px;
+        outline: none; font-family: inherit;
+      }
+      .invoice-search-input:focus { border-color: var(--accent); }
+      .invoice-search-icon {
+        position: absolute; left: 8px; top: 50%; transform: translateY(-50%);
+        width: 13px; height: 13px; color: var(--muted); pointer-events: none;
+      }
+      .invoice-search-clear {
+        position: absolute; right: 7px; top: 50%; transform: translateY(-50%);
+        background: none; border: none; color: var(--muted); font-size: 15px;
+        line-height: 1; cursor: pointer; padding: 2px 3px; display: none;
+      }
+      .invoice-search-clear:hover { color: var(--text); }
+      .invoice-search-wrap.has-value .invoice-search-clear { display: block; }
+      .invoice-search-ac {
+        position: absolute; top: calc(100% + 4px); left: 0;
+        min-width: 240px; width: max-content; max-width: 340px;
+        background: var(--panel); border: 1px solid var(--border); border-radius: 6px;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.55); max-height: 220px; overflow-y: auto;
+        z-index: 310; font-size: 13px;
+      }
+      .invoice-ac-item { padding: 6px 10px; cursor: pointer; border-bottom: 1px solid var(--border); }
+      .invoice-ac-item:last-child { border-bottom: none; }
+      .invoice-ac-item:hover, .invoice-ac-item.ac-active { background: var(--row-hover); }
+      .invoice-ac-col { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
+      .invoice-ac-val { color: var(--text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     </style>
     </head>
     <body>
@@ -661,6 +736,10 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
             Notes
           </button>
+          <button class="nav-btn" data-module="invoice">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>
+            Invoice
+          </button>
         </nav>
         <div class="footer-btns">
           <button class="footer-btn settings" id="settingsBtn" onclick="openSettingsWithPin()" title="Settings — protected by 4-digit PIN">
@@ -691,10 +770,11 @@
           </button>
           <h2 id="moduleTitle">Purchased Orders</h2>
           <div class="spacer"></div>
-          <div class="search-box">
+          <div class="search-box" id="globalSearchWrap">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
             <input type="text" id="globalSearch" placeholder="Search across all columns...">
             <button class="search-clear" id="searchClear" title="Clear search">&times;</button>
+            <div id="globalSearchAC" class="global-search-ac" style="display:none"></div>
           </div>
           <button class="btn" id="reloadBtn" title="Reload from sheet">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10"/><path d="M20.49 15a9 9 0 01-14.85 3.36L1 14"/></svg>
@@ -720,6 +800,8 @@
             </span>
             <span id="syncInfo" style="font-size:11px;color:var(--muted);"></span>
           </div>
+          <div id="shipmentBar" style="display:none"></div>
+          <div id="invoiceTabBar" style="display:none"></div>
           <div id="tableContainer">
             <div class="loader"><div class="spinner"></div>Loading...</div>
           </div>
@@ -782,6 +864,10 @@
               <label>Received tab</label>
               <input type="text" id="tab_received" placeholder="RECEIVED">
             </div>
+            <div class="form-field">
+              <label>Invoice tab</label>
+              <input type="text" id="tab_invoice" placeholder="INVOICE">
+            </div>
             <div class="settings-info" id="settingsSheetInfo">Loading available tabs...</div>
             <div class="settings-test-result" id="settingsTestResult"></div>
           </div>
@@ -819,7 +905,7 @@
             <div class="settings-info">
               <strong>PO WEBAPP V1.3</strong><br>
               Backend: container-bound to <span id="aboutSpreadsheetName">the active spreadsheet</span>.<br>
-              Modules: <code>purchased</code>, <code>incoming</code>, <code>samples</code>, <code>notes</code>.<br>
+              Modules: <code>purchased</code>, <code>incoming</code>, <code>samples</code>, <code>notes</code>, <code>invoice</code>.<br>
               Settings &amp; Design Mode adapted from JHONG Withdrawal System.
             </div>
           </div>
@@ -847,7 +933,10 @@
       samples:   { label: 'Samples',            title: 'Samples',             addLabel: 'Add New Sample',   recordType: 'samples',   defaultTab: 'SAMPLES'           },
       notes:     { label: 'Notes',              title: 'Notes',               addLabel: 'Add New Note',     recordType: 'notes',     defaultTab: 'NOTES'             },
       received:  { label: 'Received',           title: 'Received',            addLabel: 'Add New Record',   recordType: 'records',   defaultTab: 'RECEIVED'          },
+      invoice:   { label: 'Invoice',            title: 'Invoices',            addLabel: 'Add New Invoice',  recordType: 'invoices',  defaultTab: 'INVOICE'           },
     };
+
+    const INVOICE_TABS = ['FH', 'HX', '3M-WZ', 'HRS', 'KL', 'JF', 'OTHERS'];
 
     function newModuleState() {
       return {
@@ -857,6 +946,9 @@
         loaded: false, loading: false, error: null,
         sheetNameActual: '',
         syncedAt: null,
+        shipmentFilter: '',
+        invoiceTab: '',
+        subTabData: {},
       };
     }
 
@@ -872,10 +964,11 @@
         samples:   newModuleState(),
         notes:     newModuleState(),
         received:  newModuleState(),
+        invoice:   newModuleState(),
       },
       config: {
         tabs: {
-          purchased: '', incoming: '', samples: '', notes: '', received: '',
+          purchased: '', incoming: '', samples: '', notes: '', received: '', invoice: '',
         },
         pin: '1234',
       },
@@ -982,7 +1075,7 @@
         if (raw) {
           const parsed = JSON.parse(raw);
           if (parsed && parsed.tabs) {
-            ['purchased','incoming','samples','notes','received'].forEach(function (k) {
+            ['purchased','incoming','samples','notes','received','invoice'].forEach(function (k) {
               STATE.config.tabs[k] = parsed.tabs[k] || '';
             });
           }
@@ -1207,9 +1300,22 @@
       $('globalSearch').value = _sq;
       $('globalSearch').closest('.search-box').classList.toggle('has-value', _sq.length > 0);
 
+      // Invoice uses its own inline search inside the tab bar — hide topbar search
+      const _gsWrap = $('globalSearchWrap');
+      if (_gsWrap) _gsWrap.style.display = moduleId === 'invoice' ? 'none' : '';
+
+      // Re-wire global search AC so suggestions come from the newly active module
+      if (moduleId !== 'invoice') {
+        const _gsAC = $('globalSearchAC');
+        if (_gsAC) _gsAC.style.display = 'none';
+        _wireGlobalSearch();
+      }
+
       // load if needed
       const m = activeMod();
-      if (!m.loaded && !m.loading) {
+      if (moduleId === 'invoice') {
+        loadInvoiceSubTab(m.invoiceTab || INVOICE_TABS[0]);
+      } else if (!m.loaded && !m.loading) {
         loadActiveModule();
       } else {
         applyFiltersAndRender();
@@ -1221,6 +1327,10 @@
     // ============ Data Loading ===========================================
     // =====================================================================
     function loadActiveModule() {
+      if (STATE.activeModule === 'invoice') {
+        loadInvoiceSubTab(activeMod().invoiceTab || INVOICE_TABS[0]);
+        return;
+      }
       const m = activeMod();
       const cfg = activeCfg();
       const moduleId = STATE.activeModule;
@@ -1326,6 +1436,100 @@
       }) || null;
     }
 
+    // =====================================================================
+    // ============ Invoice sub-tab loader =================================
+    // =====================================================================
+    function loadInvoiceSubTab(tabName) {
+      const m = STATE.modules.invoice;
+      if (!tabName) tabName = INVOICE_TABS[0];
+      if (m.invoiceTab !== tabName) m.shipmentFilter = '';
+      m.invoiceTab = tabName;
+
+      const cached = m.subTabData[tabName];
+      if (cached && cached.loaded) {
+        m.headers = cached.headers;
+        m.rows = cached.rows;
+        m.sheetNameActual = tabName;
+        m.loaded = true;
+        m.loading = false;
+        if (STATE.activeModule === 'invoice') {
+          $('sheetInfo').textContent = 'Tab: ' + tabName;
+          $('tabInfo').innerHTML = 'Tab: <span class="pill">' + escapeHtml(tabName) + '</span>';
+          applyFiltersAndRender();
+        }
+        silentRefreshInvoiceSubTab(tabName);
+        return;
+      }
+
+      m.loading = true;
+      m.loaded = false;
+      m.error = null;
+      if (STATE.activeModule === 'invoice') {
+        $('tableContainer').innerHTML = '<div class="loader"><div class="spinner"></div>Loading "' + escapeHtml(tabName) + '"…</div>';
+        $('sheetInfo').textContent = 'Tab: ' + tabName;
+        $('tabInfo').innerHTML = 'Tab: <span class="pill">' + escapeHtml(tabName) + '</span>';
+        renderInvoiceTabBar();
+      }
+
+      google.script.run
+        .withSuccessHandler(function (result) {
+          m.loading = false;
+          if (result && result.error) {
+            if (STATE.activeModule === 'invoice' && m.invoiceTab === tabName) {
+              $('tableContainer').innerHTML = '<div class="empty-state"><strong>Sheet error:</strong><br>'
+                + '<code style="color:var(--danger)">' + escapeHtml(result.error) + '</code><br><br>'
+                + 'The tab <strong>' + escapeHtml(tabName) + '</strong> does not exist in the spreadsheet.'
+                + '<br><br><button class="btn btn-primary" style="margin-top:8px" onclick="loadInvoiceSubTab(\'' + escapeHtml(tabName) + '\')">↺ Retry</button></div>';
+            }
+            return;
+          }
+          const headers = result.headers || [];
+          const rows = result.rows || [];
+          m.subTabData[tabName] = { headers: headers, rows: rows, loaded: true };
+          if (STATE.activeModule === 'invoice' && m.invoiceTab === tabName) {
+            m.headers = headers;
+            m.rows = rows;
+            m.sheetNameActual = result.sheetName || tabName;
+            m.loaded = true;
+            $('sheetInfo').textContent = 'Tab: ' + (result.sheetName || tabName);
+            $('tabInfo').innerHTML = 'Tab: <span class="pill">' + escapeHtml(result.sheetName || tabName) + '</span>';
+            applyFiltersAndRender();
+            markSynced();
+          }
+        })
+        .withFailureHandler(function (err) {
+          m.loading = false;
+          if (STATE.activeModule === 'invoice' && m.invoiceTab === tabName) {
+            $('tableContainer').innerHTML = '<div class="empty-state"><strong>Connection failed:</strong><br>'
+              + '<code style="color:var(--danger)">' + escapeHtml(err.message || err) + '</code>'
+              + '<br><br><button class="btn" style="margin-top:8px" onclick="loadInvoiceSubTab(\'' + escapeHtml(tabName) + '\')">↺ Retry</button></div>';
+          }
+        })
+        .getRows(tabName);
+    }
+
+    function silentRefreshInvoiceSubTab(tabName) {
+      const m = STATE.modules.invoice;
+      if (m.loading) return;
+      google.script.run
+        .withSuccessHandler(function (result) {
+          if (!result || result.error) return;
+          const headers = result.headers || [];
+          const rows = result.rows || [];
+          m.subTabData[tabName] = { headers: headers, rows: rows, loaded: true };
+          if (STATE.activeModule === 'invoice' && m.invoiceTab === tabName) {
+            m.headers = headers;
+            m.rows = rows;
+            m.sheetNameActual = result.sheetName || tabName;
+            m.loaded = true;
+            markSynced();
+            applyFiltersAndRender();
+          }
+        })
+        .withFailureHandler(function () {})
+        .getRows(tabName);
+    }
+
     function applyFiltersAndRender() {
       const m = activeMod();
       const q = (m.globalQuery || '').trim().toLowerCase();
@@ -1350,13 +1554,16 @@
       });
 
       // Show only records from the current year; rows with an empty date cell are kept.
-      const currentYear = String(new Date().getFullYear());
-      const dateCol = findDateColumn(m.headers, m.rows);
-      if (dateCol) {
-        result = result.filter(function (row) {
-          const v = String(row[dateCol] || '');
-          return v === '' || v.startsWith(currentYear);
-        });
+      // Invoice module is exempt — invoices span multiple years and should always show all records.
+      if (STATE.activeModule !== 'invoice') {
+        const currentYear = String(new Date().getFullYear());
+        const dateCol = findDateColumn(m.headers, m.rows);
+        if (dateCol) {
+          result = result.filter(function (row) {
+            const v = String(row[dateCol] || '');
+            return v === '' || v.startsWith(currentYear);
+          });
+        }
       }
 
       // Sort: respect the user's chosen column; default to sheet row order (newest last-filled row first).
@@ -1370,6 +1577,12 @@
           return h.toUpperCase().replace(/[^A-Z0-9]/g, '') === 'DATERECEIVED';
         });
         if (drHeader) { sortKey = drHeader; sortDir = -1; useDateSort = true; }
+      }
+      if (!m.sortKey && STATE.activeModule === 'purchased') {
+        const orderHeader = m.headers.find(function (h) {
+          return h.toUpperCase().replace(/[^A-Z0-9]/g, '') === 'ORDER';
+        });
+        if (orderHeader) { sortKey = orderHeader; sortDir = -1; }
       }
       if (sortKey) {
         result.sort(function (a, b) {
@@ -1389,8 +1602,27 @@
         });
       }
 
+      // Incoming / Invoice module: filter by selected shipment or invoice number
+      if ((STATE.activeModule === 'incoming' || STATE.activeModule === 'invoice') && m.shipmentFilter) {
+        let _sfHdr = m.headers.find(function (h) {
+          return h.toUpperCase().replace(/[^A-Z0-9]/g, '').indexOf('SHIPMENT') === 0;
+        });
+        if (!_sfHdr && STATE.activeModule === 'invoice') {
+          _sfHdr = m.headers.find(function (h) {
+            return h.toUpperCase().replace(/[^A-Z0-9]/g, '').indexOf('INVOICE') === 0;
+          });
+        }
+        if (_sfHdr) {
+          result = result.filter(function (row) {
+            return String(row[_sfHdr] || '').trim() === m.shipmentFilter;
+          });
+        }
+      }
+
       m.filtered = result;
       renderTable();
+      renderShipmentBar();
+      renderInvoiceTabBar();
     }
 
     function renderTable() {
@@ -1561,21 +1793,421 @@
     }
 
     // =====================================================================
+    // ============ Shipment selector bar (Incoming module) ================
+    // =====================================================================
+    function renderShipmentBar() {
+      const bar = $('shipmentBar');
+      if (!bar) return;
+      if (STATE.activeModule !== 'incoming' && STATE.activeModule !== 'invoice') {
+        bar.style.display = 'none';
+        bar.innerHTML = '';
+        return;
+      }
+      const m = activeMod();
+      let shipHdr = m.headers.find(function (h) {
+        return h.toUpperCase().replace(/[^A-Z0-9]/g, '').indexOf('SHIPMENT') === 0;
+      });
+      let shipLabel = 'Shipment:';
+      if (!shipHdr && STATE.activeModule === 'invoice') {
+        shipHdr = m.headers.find(function (h) {
+          return h.toUpperCase().replace(/[^A-Z0-9]/g, '').indexOf('INVOICE') === 0;
+        });
+        if (shipHdr) shipLabel = 'Invoice No.:';
+      }
+      if (!shipHdr || m.rows.length === 0) {
+        bar.style.display = 'none';
+        bar.innerHTML = '';
+        return;
+      }
+      // Collect unique shipment values from ALL rows (pre-filter)
+      const seen = {}, values = [];
+      m.rows.forEach(function (r) {
+        const v = String(r[shipHdr] || '').trim();
+        if (v && !seen[v]) { seen[v] = true; values.push(v); }
+      });
+      values.sort(function (a, b) { return b.localeCompare(a, undefined, { numeric: true }); });
+      if (values.length === 0) { bar.style.display = 'none'; return; }
+
+      const current = m.shipmentFilter || '';
+      const countAll = m.rows.length;
+      const countSel = current
+        ? m.rows.filter(function (r) { return String(r[shipHdr] || '').trim() === current; }).length
+        : countAll;
+
+      let html = '<div class="shipment-bar">'
+        + '<span class="shipment-bar-label">' + shipLabel + '</span>'
+        + '<select class="shipment-select" id="shipmentSelect">'
+        + '<option value="">All (' + countAll + ' records)</option>';
+      values.forEach(function (v) {
+        const cnt = m.rows.filter(function (r) { return String(r[shipHdr] || '').trim() === v; }).length;
+        const sel = v === current ? ' selected' : '';
+        html += '<option value="' + escapeHtml(v) + '"' + sel + '>' + escapeHtml(v) + ' (' + cnt + ')' + '</option>';
+      });
+      html += '</select>';
+      if (current) {
+        html += '<span class="shipment-bar-count">Showing ' + countSel + ' of ' + countAll + ' records</span>';
+      }
+      html += '</div>';
+
+      bar.innerHTML = html;
+      bar.style.display = 'block';
+
+      document.getElementById('shipmentSelect').addEventListener('change', function () {
+        activeMod().shipmentFilter = this.value;
+        applyFiltersAndRender();
+      });
+    }
+
+    // =====================================================================
+    // ============ Invoice sub-tab bar ====================================
+    // =====================================================================
+    function renderInvoiceTabBar() {
+      const bar = $('invoiceTabBar');
+      if (!bar) return;
+      if (STATE.activeModule !== 'invoice') {
+        bar.style.display = 'none';
+        bar.innerHTML = '';
+        bar.dataset.renderedTab = '';
+        return;
+      }
+      const m = activeMod();
+      const current = m.invoiceTab || INVOICE_TABS[0];
+
+      // If already rendered for this exact sub-tab, skip full rebuild to keep focus/cursor in search
+      const existingSearch = $('invoiceSearch');
+      if (existingSearch && bar.dataset.renderedTab === current) {
+        bar.querySelectorAll('.invoice-tab-pill').forEach(function (btn) {
+          btn.classList.toggle('active', btn.dataset.itab === current);
+        });
+        return;
+      }
+
+      // Full render (first load or sub-tab changed)
+      bar.dataset.renderedTab = current;
+      const currentQuery = m.globalQuery || '';
+      const searchIcon = '<svg class="invoice-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>';
+      let html = '<div class="invoice-tab-bar">';
+      INVOICE_TABS.forEach(function (t) {
+        html += '<button class="invoice-tab-pill' + (current === t ? ' active' : '') + '" data-itab="' + escapeHtml(t) + '">' + escapeHtml(t) + '</button>';
+      });
+      html += '<div class="invoice-search-wrap' + (currentQuery ? ' has-value' : '') + '">'
+        + searchIcon
+        + '<input type="text" id="invoiceSearch" class="invoice-search-input"'
+        + ' placeholder="Search ' + escapeHtml(current) + '…" value="' + escapeHtml(currentQuery) + '">'
+        + '<button class="invoice-search-clear" id="invoiceSearchClear" title="Clear">&times;</button>'
+        + '<div id="invoiceSearchAC" class="invoice-search-ac" style="display:none"></div>'
+        + '</div>';
+      html += '</div>';
+      bar.innerHTML = html;
+      bar.style.display = 'block';
+
+      bar.querySelectorAll('.invoice-tab-pill').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          loadInvoiceSubTab(this.dataset.itab);
+        });
+      });
+
+      $('invoiceSearchClear').addEventListener('click', function () {
+        const inp = $('invoiceSearch');
+        inp.value = '';
+        activeMod().globalQuery = '';
+        inp.closest('.invoice-search-wrap').classList.remove('has-value');
+        inp.focus();
+        const ac = $('invoiceSearchAC');
+        if (ac) ac.style.display = 'none';
+        applyFiltersAndRender();
+      });
+
+      _wireInvoiceSearch();
+    }
+
+    function _wireInvoiceSearch() {
+      const inp = $('invoiceSearch');
+      const ac  = $('invoiceSearchAC');
+      if (!inp || !ac) return;
+
+      let acItems = [];
+      let activeIdx = -1;
+
+      function collectSuggestions(q) {
+        if (!q || !q.trim()) return [];
+        const m = STATE.modules.invoice;
+        const qLow = q.trim().toLowerCase();
+        const seen = {}, results = [];
+        for (let ri = 0; ri < m.rows.length; ri++) {
+          const row = m.rows[ri];
+          for (let hi = 0; hi < m.headers.length; hi++) {
+            const h = m.headers[hi];
+            const v = String(row[h] || '').trim();
+            if (!v) continue;
+            const vLow = v.toLowerCase();
+            if (vLow.indexOf(qLow) !== -1) {
+              const key = h + '\x00' + v;
+              if (!seen[key]) {
+                seen[key] = true;
+                results.push({ col: h, val: v, starts: vLow.indexOf(qLow) === 0 });
+              }
+            }
+          }
+          if (results.length >= 80) break; // cap scan for large sheets
+        }
+        results.sort(function (a, b) {
+          if (a.starts && !b.starts) return -1;
+          if (!a.starts && b.starts) return 1;
+          return a.val.localeCompare(b.val);
+        });
+        return results.slice(0, 10);
+      }
+
+      function renderAC() {
+        if (acItems.length === 0) { ac.style.display = 'none'; return; }
+        let html = '';
+        acItems.forEach(function (item, i) {
+          const cls = i === activeIdx ? ' ac-active' : '';
+          html += '<div class="invoice-ac-item' + cls + '" data-i="' + i + '">'
+            + '<div class="invoice-ac-col">' + escapeHtml(item.col) + '</div>'
+            + '<div class="invoice-ac-val">' + escapeHtml(item.val) + '</div>'
+            + '</div>';
+        });
+        ac.innerHTML = html;
+        ac.style.display = 'block';
+        ac.querySelectorAll('.invoice-ac-item').forEach(function (el) {
+          el.addEventListener('mousedown', function (e) {
+            e.preventDefault();
+            pickAC(parseInt(el.dataset.i, 10));
+          });
+          el.addEventListener('mouseenter', function () {
+            activeIdx = parseInt(el.dataset.i, 10);
+            updateHighlight();
+          });
+        });
+      }
+
+      function updateHighlight() {
+        ac.querySelectorAll('.invoice-ac-item').forEach(function (el, i) {
+          el.classList.toggle('ac-active', i === activeIdx);
+        });
+      }
+
+      function pickAC(idx) {
+        const item = acItems[idx];
+        if (!item) return;
+        inp.value = item.val;
+        activeMod().globalQuery = item.val;
+        inp.closest('.invoice-search-wrap').classList.add('has-value');
+        ac.style.display = 'none';
+        acItems = []; activeIdx = -1;
+        applyFiltersAndRender();
+      }
+
+      function hideAC() { ac.style.display = 'none'; acItems = []; activeIdx = -1; }
+
+      inp.addEventListener('input', function () {
+        const v = inp.value;
+        activeMod().globalQuery = v;
+        inp.closest('.invoice-search-wrap').classList.toggle('has-value', v.length > 0);
+        acItems = collectSuggestions(v);
+        activeIdx = acItems.length > 0 ? 0 : -1;
+        renderAC();
+        applyFiltersAndRender();
+      });
+
+      inp.addEventListener('focus', function () {
+        if (inp.value.trim()) {
+          acItems = collectSuggestions(inp.value);
+          activeIdx = acItems.length > 0 ? 0 : -1;
+          renderAC();
+        }
+      });
+
+      inp.addEventListener('blur', function () { setTimeout(hideAC, 160); });
+
+      inp.addEventListener('keydown', function (e) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          activeIdx = Math.min(acItems.length - 1, activeIdx + 1);
+          updateHighlight();
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          activeIdx = Math.max(0, activeIdx - 1);
+          updateHighlight();
+        } else if (e.key === 'Enter') {
+          if (activeIdx >= 0 && acItems.length > 0) {
+            e.preventDefault();
+            pickAC(activeIdx);
+          } else {
+            hideAC();
+          }
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          if (ac.style.display !== 'none') {
+            hideAC();
+          } else {
+            inp.value = '';
+            activeMod().globalQuery = '';
+            inp.closest('.invoice-search-wrap').classList.remove('has-value');
+            applyFiltersAndRender();
+          }
+        }
+      });
+    }
+
+    // =====================================================================
     // ============ Search / topbar wiring =================================
     // =====================================================================
-    $('globalSearch').addEventListener('input', function (e) {
-      activeMod().globalQuery = e.target.value;
-      e.target.closest('.search-box').classList.toggle('has-value', e.target.value.length > 0);
-      applyFiltersAndRender();
-    });
-    $('searchClear').addEventListener('click', function () {
+    function _wireGlobalSearch() {
       const inp = $('globalSearch');
-      inp.value = '';
-      activeMod().globalQuery = '';
-      inp.closest('.search-box').classList.remove('has-value');
-      inp.focus();
-      applyFiltersAndRender();
-    });
+      const ac  = $('globalSearchAC');
+      if (!inp || !ac) return;
+
+      // Remove old listeners by cloning the node (keeps DOM position, drops listeners)
+      const currentVal = inp.value;
+      const inp2 = inp.cloneNode(true);
+      inp2.value = currentVal; // cloneNode copies attributes, not the live .value property
+      inp.parentNode.replaceChild(inp2, inp);
+      const inp3 = inp2;
+
+      let acItems = [];
+      let activeIdx = -1;
+
+      function collectSuggestions(q) {
+        if (!q || !q.trim()) return [];
+        const m = activeMod();
+        if (!m || !m.rows || !m.headers) return [];
+        const qLow = q.trim().toLowerCase();
+        const seen = {}, results = [];
+        for (let ri = 0; ri < m.rows.length; ri++) {
+          const row = m.rows[ri];
+          for (let hi = 0; hi < m.headers.length; hi++) {
+            const h = m.headers[hi];
+            const v = String(row[h] || '').trim();
+            if (!v) continue;
+            const vLow = v.toLowerCase();
+            if (vLow.indexOf(qLow) !== -1) {
+              const key = h + '\x00' + v;
+              if (!seen[key]) {
+                seen[key] = true;
+                results.push({ col: h, val: v, starts: vLow.indexOf(qLow) === 0 });
+              }
+            }
+          }
+          if (results.length >= 80) break;
+        }
+        results.sort(function (a, b) {
+          if (a.starts && !b.starts) return -1;
+          if (!a.starts && b.starts) return 1;
+          return a.val.localeCompare(b.val);
+        });
+        return results.slice(0, 10);
+      }
+
+      function renderAC() {
+        if (acItems.length === 0) { ac.style.display = 'none'; return; }
+        let html = '';
+        acItems.forEach(function (item, i) {
+          const cls = i === activeIdx ? ' ac-active' : '';
+          html += '<div class="global-ac-item' + cls + '" data-i="' + i + '">'
+            + '<div class="global-ac-col">' + escapeHtml(item.col) + '</div>'
+            + '<div class="global-ac-val">' + escapeHtml(item.val) + '</div>'
+            + '</div>';
+        });
+        ac.innerHTML = html;
+        ac.style.display = 'block';
+        ac.querySelectorAll('.global-ac-item').forEach(function (el) {
+          el.addEventListener('mousedown', function (e) {
+            e.preventDefault();
+            pickAC(parseInt(el.dataset.i, 10));
+          });
+          el.addEventListener('mouseenter', function () {
+            activeIdx = parseInt(el.dataset.i, 10);
+            updateHighlight();
+          });
+        });
+      }
+
+      function updateHighlight() {
+        ac.querySelectorAll('.global-ac-item').forEach(function (el, i) {
+          el.classList.toggle('ac-active', i === activeIdx);
+        });
+      }
+
+      function pickAC(idx) {
+        const item = acItems[idx];
+        if (!item) return;
+        inp3.value = item.val;
+        activeMod().globalQuery = item.val;
+        inp3.closest('.search-box').classList.add('has-value');
+        ac.style.display = 'none';
+        acItems = []; activeIdx = -1;
+        applyFiltersAndRender();
+      }
+
+      function hideAC() { ac.style.display = 'none'; acItems = []; activeIdx = -1; }
+
+      inp3.addEventListener('input', function () {
+        const v = inp3.value;
+        activeMod().globalQuery = v;
+        inp3.closest('.search-box').classList.toggle('has-value', v.length > 0);
+        acItems = collectSuggestions(v);
+        activeIdx = acItems.length > 0 ? 0 : -1;
+        renderAC();
+        applyFiltersAndRender();
+      });
+
+      inp3.addEventListener('focus', function () {
+        if (inp3.value.trim()) {
+          acItems = collectSuggestions(inp3.value);
+          activeIdx = acItems.length > 0 ? 0 : -1;
+          renderAC();
+        }
+      });
+
+      inp3.addEventListener('blur', function () { setTimeout(hideAC, 160); });
+
+      inp3.addEventListener('keydown', function (e) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          activeIdx = Math.min(acItems.length - 1, activeIdx + 1);
+          updateHighlight();
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          activeIdx = Math.max(0, activeIdx - 1);
+          updateHighlight();
+        } else if (e.key === 'Enter') {
+          if (activeIdx >= 0 && acItems.length > 0) {
+            e.preventDefault();
+            pickAC(activeIdx);
+          } else {
+            hideAC();
+          }
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          if (ac.style.display !== 'none') {
+            hideAC();
+          } else {
+            inp3.value = '';
+            activeMod().globalQuery = '';
+            inp3.closest('.search-box').classList.remove('has-value');
+            applyFiltersAndRender();
+          }
+        }
+      });
+
+      // Clone searchClear to drop prior listeners accumulated from re-wiring
+      const clrOld = $('searchClear');
+      const clrNew = clrOld.cloneNode(true);
+      clrOld.parentNode.replaceChild(clrNew, clrOld);
+      clrNew.addEventListener('click', function () {
+        inp3.value = '';
+        activeMod().globalQuery = '';
+        inp3.closest('.search-box').classList.remove('has-value');
+        ac.style.display = 'none';
+        acItems = []; activeIdx = -1;
+        inp3.focus();
+        applyFiltersAndRender();
+      });
+    }
+    _wireGlobalSearch();
     $('reloadBtn').addEventListener('click', function () {
       // force reload of active module
       activeMod().loaded = false;
@@ -2324,6 +2956,7 @@
       $('tab_samples').value   = STATE.config.tabs.samples   || '';
       $('tab_notes').value     = STATE.config.tabs.notes     || '';
       $('tab_received').value  = STATE.config.tabs.received  || '';
+      $('tab_invoice').value   = STATE.config.tabs.invoice   || '';
       // Surface the currently resolved (active) tab name for Purchased Order
       const resolvedPO = tabFor('purchased');
       $('tab_purchased').placeholder = resolvedPO;
@@ -2365,6 +2998,7 @@
       STATE.config.tabs.samples   = ($('tab_samples').value   || '').trim();
       STATE.config.tabs.notes     = ($('tab_notes').value     || '').trim();
       STATE.config.tabs.received  = ($('tab_received').value  || '').trim();
+      STATE.config.tabs.invoice   = ($('tab_invoice').value   || '').trim();
       const pin = ($('settingsPin').value || '').replace(/[^0-9]/g, '').slice(0, 4);
       if (pin && pin.length !== 4) { showToast('PIN must be exactly 4 digits', 'error'); return; }
       if (pin.length === 4) STATE.config.pin = pin;
@@ -2398,6 +3032,7 @@
         samples:   ($('tab_samples').value   || '').trim() || MODULES.samples.defaultTab,
         notes:     ($('tab_notes').value     || '').trim() || MODULES.notes.defaultTab,
         received:  ($('tab_received').value  || '').trim() || MODULES.received.defaultTab,
+        invoice:   ($('tab_invoice').value   || '').trim() || MODULES.invoice.defaultTab,
       };
       const ids = Object.keys(fields);
       let done = 0;
@@ -2596,6 +3231,11 @@
     }
 
     function silentRefresh() {
+      if (STATE.activeModule === 'invoice') {
+        const _im = STATE.modules.invoice;
+        if (_im.invoiceTab) silentRefreshInvoiceSubTab(_im.invoiceTab);
+        return;
+      }
       const m = activeMod();
       if (m.loading) return; // skip if a manual load is already running
       const moduleId = STATE.activeModule;
