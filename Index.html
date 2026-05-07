@@ -101,10 +101,27 @@
         background: var(--sidebar);
         border-right: 1px solid var(--border);
         display: flex; flex-direction: column;
+        transition: width 0.22s ease, min-width 0.22s ease, border-right-width 0.22s ease;
       }
       .sidebar-header {
-        padding: 20px 18px;
+        padding: 16px 14px 16px 18px;
         border-bottom: 1px solid var(--border);
+        display: flex; align-items: center; gap: 6px;
+      }
+      .sidebar-header-text { flex: 1; min-width: 0; }
+      .sidebar-collapse-btn {
+        background: none; border: none; color: var(--muted);
+        cursor: pointer; padding: 5px; border-radius: 5px;
+        line-height: 1; flex-shrink: 0; transition: all 0.15s;
+      }
+      .sidebar-collapse-btn:hover { color: var(--text); background: var(--panel-2); }
+      .sidebar-collapse-btn svg { display: block; }
+      /* Desktop sidebar-hidden state */
+      @media (min-width: 769px) {
+        body.sidebar-hidden .sidebar {
+          width: 0; min-width: 0; overflow: hidden; border-right-width: 0;
+        }
+        body.sidebar-hidden #menuToggle { display: inline-flex; }
       }
       .sidebar-header h1 {
         margin: 0; font-size: 16px; font-weight: 700;
@@ -135,7 +152,7 @@
       }
 
       /* Main */
-      .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+      .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
 
       .topbar {
         padding: 16px 24px;
@@ -211,7 +228,7 @@
       .btn svg { width: 14px; height: 14px; }
 
       /* Content */
-      .content { flex: 1; overflow: auto; padding: 0 24px 24px; }
+      .content { flex: 1; overflow: auto; padding: 0 24px 24px; min-width: 0; }
 
       .meta-row {
         padding: 12px 0;
@@ -232,7 +249,7 @@
         overflow-x: auto;
         max-width: 100%;
       }
-      table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 13px; }
+      table { width: 100%; table-layout: auto; border-collapse: collapse; font-size: 13px; }
       thead th {
         position: sticky; top: 0;
         background: var(--panel-2);
@@ -244,6 +261,7 @@
         border-right: 1px solid var(--border-th-r);
         cursor: default; user-select: none;
         overflow: visible;
+        min-width: 55px;
       }
       thead th .th-label {
         display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -255,7 +273,11 @@
         display: inline-block; margin-left: 4px;
         color: var(--accent); font-size: 11px;
       }
-      thead th.actions-col { cursor: default; text-align: right; width: 80px; }
+      thead th.actions-col {
+        cursor: default; text-align: right; width: 80px;
+        position: sticky; right: 0; z-index: 2;
+        box-shadow: -2px 0 6px rgba(0,0,0,0.25);
+      }
       thead th.actions-col:hover { background: var(--panel-2); }
       th.col-itemcode { background: rgba(47,129,247,0.10) !important; border-left: 2px solid rgba(47,129,247,0.45) !important; color: #6aabee !important; }
       td.col-itemcode { background: rgba(47,129,247,0.05); border-left: 2px solid rgba(47,129,247,0.3) !important; font-weight: 600; color: #8fb8e8; }
@@ -353,7 +375,13 @@
         font-size: 11px; color: var(--muted); line-height: 1.4; flex-shrink: 0;
       }
 
-      td.actions { text-align: right; white-space: nowrap; padding-left: 4px; padding-right: 4px; }
+      td.actions {
+        text-align: right; white-space: nowrap; padding-left: 4px; padding-right: 4px;
+        position: sticky; right: 0;
+        background: var(--panel);
+        box-shadow: -2px 0 6px rgba(0,0,0,0.18);
+      }
+      tbody tr:hover td.actions { background: var(--row-hover); }
       td.actions .btn { margin-left: 4px; }
 
       .empty-state {
@@ -603,6 +631,13 @@
         z-index: 149;
       }
 
+      /* Intermediate: narrow sidebar padding at moderate zoom / small monitors */
+      @media (max-width: 900px) {
+        .sidebar { width: 152px; min-width: 152px; }
+        .topbar { padding: 12px 14px; }
+        .content { padding: 0 14px 20px; }
+      }
+
       @media (max-width: 768px) {
         /* Sidebar becomes a fixed slide-in drawer */
         .sidebar {
@@ -850,8 +885,13 @@
       <!-- ============ SIDEBAR ============ -->
       <aside class="sidebar">
         <div class="sidebar-header">
-          <h1>PO WEBAPP</h1>
-          <div class="ver">v1.3</div>
+          <div class="sidebar-header-text">
+            <h1>PO WEBAPP</h1>
+            <div class="ver">v1.3</div>
+          </div>
+          <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" onclick="toggleDesktopSidebar()" title="Hide sidebar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
         </div>
         <nav class="nav" id="sidebarNav">
           <button class="nav-btn active" data-module="purchased">
@@ -908,7 +948,7 @@
       <!-- ============ MAIN (single shared page) ============ -->
       <main class="main">
         <div class="topbar">
-          <button class="menu-toggle" id="menuToggle" onclick="toggleSidebar()" title="Menu" aria-label="Open navigation">
+          <button class="menu-toggle" id="menuToggle" onclick="handleMenuToggle()" title="Show sidebar" aria-label="Open navigation">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
           </button>
           <h2 id="moduleTitle">Purchased Orders</h2>
@@ -1042,7 +1082,8 @@
               <input type="password" id="settingsUserPass" placeholder="Leave blank to keep current">
             </div>
             <div class="settings-info">
-              Usernames <strong>admin</strong> and <strong>user</strong> are fixed.<br>
+              Usernames <strong>admin</strong> and <strong>user</strong> are built-in.<br>
+              Extra accounts are stored in the <code>USERS</code> sheet tab and sync across all devices automatically.<br>
               Passwords must be at least 4 characters. Admin: full access. User: view &amp; edit only.
             </div>
 
@@ -1147,7 +1188,8 @@
     const ACCOUNTS_KEY = 'po_webapp_accounts_v1';
     const SESSION_KEY  = 'po_webapp_session_v1';
 
-    function getAccounts() {
+    // Local fallback — used when the USERS sheet tab does not exist yet.
+    function getLocalAccounts() {
       try {
         const raw = localStorage.getItem(ACCOUNTS_KEY);
         if (raw) {
@@ -1160,9 +1202,40 @@
         user:  { password: 'user1234',  role: 'user'  },
       };
     }
-    function saveAccounts(accts) {
-      try { localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accts)); } catch (e) {}
+
+    // Sheet-backed account cache — fetched once per page load from the USERS tab.
+    // Sheet accounts are merged on top of local defaults so admin/user always work
+    // even when their passwords haven't been saved to the sheet yet.
+    let _accountsCache   = null;
+    let _accountsLoading = false;
+    let _accountsCbs     = [];
+
+    function fetchAccounts(cb) {
+      if (_accountsCache !== null) { cb(_accountsCache); return; }
+      _accountsCbs.push(cb);
+      if (_accountsLoading) return;
+      _accountsLoading = true;
+      google.script.run
+        .withSuccessHandler(function (res) {
+          _accountsLoading = false;
+          const sheetAccounts = (res && res.ok && res.accounts) ? res.accounts : {};
+          // Local defaults are the base; sheet overrides (newer passwords, extra users)
+          const merged = Object.assign({}, getLocalAccounts(), sheetAccounts);
+          _accountsCache = merged;
+          _accountsCbs.forEach(function (fn) { fn(merged); });
+          _accountsCbs = [];
+        })
+        .withFailureHandler(function () {
+          _accountsLoading = false;
+          const local = getLocalAccounts();
+          _accountsCache = local;
+          _accountsCbs.forEach(function (fn) { fn(local); });
+          _accountsCbs = [];
+        })
+        .getUsers();
     }
+
+    function invalidateAccountsCache() { _accountsCache = null; }
     function getSession() {
       try { return JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null'); } catch (e) { return null; }
     }
@@ -1197,22 +1270,28 @@
       const password = document.getElementById('loginPassword').value || '';
       const errEl    = document.getElementById('loginErr');
       if (!username || !password) { errEl.textContent = 'Enter username and password.'; return; }
-      const accounts = getAccounts();
-      const account  = accounts[username];
-      if (!account || account.password !== password) {
-        errEl.textContent = 'Incorrect username or password.';
-        document.getElementById('loginPassword').value = '';
-        document.getElementById('loginPassword').focus();
-        return;
-      }
-      STATE.currentUser = { username: username, role: account.role };
-      setSession(username, account.role);
-      document.getElementById('loginGate').style.display = 'none';
-      applyRoleUI();
-      loadConfig();
-      switchModule('purchased');
-      startAutoRefresh();
-      fetchItemCodes(function () {});
+      const loginBtn = document.querySelector('.login-btn');
+      if (loginBtn) { loginBtn.disabled = true; loginBtn.textContent = 'Signing in…'; }
+      errEl.textContent = '';
+      fetchAccounts(function (accounts) {
+        if (loginBtn) { loginBtn.disabled = false; loginBtn.textContent = 'Sign In'; }
+        const account = accounts[username];
+        if (!account || account.password !== password) {
+          errEl.textContent = 'Incorrect username or password.';
+          document.getElementById('loginPassword').value = '';
+          document.getElementById('loginPassword').focus();
+          return;
+        }
+        STATE.currentUser = { username: username, role: account.role };
+        setSession(username, account.role);
+        document.getElementById('loginGate').style.display = 'none';
+        applyRoleUI();
+        loadConfig();
+        switchModule('purchased');
+        startAutoRefresh();
+        fetchItemCodes(function () {});
+        _syncColVisFromSheet();
+      });
     }
 
     function doLogout() {
@@ -1317,7 +1396,7 @@
     // Factor of the default 320px max-width — e.g. 0.5 = shrink to 50%.
     // Keys are normalized (uppercase, alphanumeric only) so the match is
     // tolerant to spaces, underscores, and casing in the sheet headers.
-    const DEFAULT_COL_MAX_WIDTH = 320;
+    const DEFAULT_COL_MAX_WIDTH = 220;
     const COLUMN_WIDTH_FACTORS_RAW = {
       'ITEMCODE':         0.55,
       'ITEM DESCRIPTION': 0.55,
@@ -1329,7 +1408,7 @@
     });
 
     // Columns whose text should wrap instead of truncate with ellipsis.
-    const WRAP_COLUMNS_RAW = ['REMARKS'];
+    const WRAP_COLUMNS_RAW = ['REMARKS', 'SP CODE', 'DATE RECEIVED'];
     const WRAP_COLUMNS = {};
     WRAP_COLUMNS_RAW.forEach(function (k) {
       WRAP_COLUMNS[k.toUpperCase().replace(/[^A-Z0-9]/g, '')] = true;
@@ -1357,7 +1436,7 @@
       COLUMN_ORDER[k.toUpperCase().replace(/[^A-Z0-9]/g, '')] = i;
     });
 
-    const DEFAULT_COL_WIDTH = 110;
+    const DEFAULT_COL_WIDTH = 88;
 
     const CENTER_COLUMNS_RAW = ['SP CODE', 'SUPPLIER CODE', 'SHIPMENT', 'STATUS', 'DATE RECEIVED'];
     const CENTER_COLUMNS = {};
@@ -1413,7 +1492,31 @@
     const COL_VIS_KEY = 'po_webapp_col_vis_v1';
     let colVisConfig = {};
     try { const _cv = localStorage.getItem(COL_VIS_KEY); if (_cv) colVisConfig = JSON.parse(_cv) || {}; } catch(e) {}
-    function saveColVis() { try { localStorage.setItem(COL_VIS_KEY, JSON.stringify(colVisConfig)); } catch(e) {} }
+
+    function saveColVis() {
+      try { localStorage.setItem(COL_VIS_KEY, JSON.stringify(colVisConfig)); } catch(e) {}
+      google.script.run
+        .withSuccessHandler(function () {}).withFailureHandler(function () {})
+        .saveColVis(JSON.stringify(colVisConfig));
+    }
+
+    // Pulls the authoritative col-vis config from the sheet and re-renders if it differs.
+    function _syncColVisFromSheet() {
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (!res || !res.ok) return;
+          try {
+            const remote = JSON.parse(res.value || '{}');
+            if (JSON.stringify(remote) === JSON.stringify(colVisConfig)) return;
+            colVisConfig = remote;
+            try { localStorage.setItem(COL_VIS_KEY, JSON.stringify(colVisConfig)); } catch(e) {}
+            applyFiltersAndRender();
+          } catch(e) {}
+        })
+        .withFailureHandler(function () {})
+        .getColVis();
+    }
+
     function isColAdminOnly(moduleId, header) { return !!(colVisConfig[moduleId] && colVisConfig[moduleId][header]); }
 
     function colStyle(header, isHeaderCell) {
@@ -1472,6 +1575,21 @@
       if (document.querySelector('.sidebar').classList.contains('open')) closeSidebar();
       else openSidebar();
     }
+
+    // Desktop sidebar collapse/expand
+    const _SIDEBAR_HIDDEN_KEY = 'po_webapp_sidebar_hidden_v1';
+    function toggleDesktopSidebar() {
+      const hidden = document.body.classList.toggle('sidebar-hidden');
+      try { localStorage.setItem(_SIDEBAR_HIDDEN_KEY, hidden ? '1' : ''); } catch(e) {}
+    }
+    function handleMenuToggle() {
+      if (window.innerWidth <= 768) toggleSidebar();
+      else toggleDesktopSidebar();
+    }
+    // Apply saved collapse state immediately
+    (function () {
+      try { if (localStorage.getItem(_SIDEBAR_HIDDEN_KEY) === '1') document.body.classList.add('sidebar-hidden'); } catch(e) {}
+    })();
 
     document.querySelectorAll('.nav-btn').forEach(function (btn) {
       btn.addEventListener('click', function () {
@@ -1870,6 +1988,11 @@
           if (!name) return false;
           if (HIDDEN_COLUMNS[name.toUpperCase().replace(/[^A-Z0-9]/g, '')]) return false;
           if (!isAdmin() && isColAdminOnly(STATE.activeModule, x.h)) return false;
+          if (STATE.activeModule === 'invoice') {
+            const k = name.toUpperCase().replace(/[^A-Z0-9]/g, '');
+            if (k === 'DATE' || k === 'INVOICEDATE' || k === 'INVDATE') return false;
+            if (k === 'EXCHANGERATE' || k === 'EXRATE' || k === 'EXCHRATE' || (k.indexOf('EXCHANGE') !== -1 && k.indexOf('RATE') !== -1)) return false;
+          }
           return true;
         })
         .map(function (x) {
@@ -1894,14 +2017,10 @@
         ? m.headers.find(function (h) { return h.toUpperCase().replace(/[^A-Z0-9]/g, '') === 'SIGNATURE'; })
         : null;
       const _showSign = !!_sigColHdr;
-      const _actionsColW = _showSign ? (isAdmin() ? 132 : 90) : (isAdmin() ? 90 : 52);
+      const _actionsColW = (isAdmin() || _showSign) ? 90 : 52;
 
       let totalMinWidth = _actionsColW;
-      headers.forEach(function (h) {
-        const k = String(h || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-        const factor = COLUMN_WIDTH_FACTORS[k];
-        totalMinWidth += factor ? Math.round(DEFAULT_COL_MAX_WIDTH * factor) : DEFAULT_COL_WIDTH;
-      });
+      headers.forEach(function () { totalMinWidth += 60; });
 
       let html = '<div class="table-wrap"><table style="min-width:' + totalMinWidth + 'px"><thead>';
       html += '<tr>';
@@ -1941,10 +2060,10 @@
             html += '<td class="actions"><span style="font-size:11px;color:var(--muted)">Syncing…</span></td></tr>';
           } else {
             html += '<td class="actions">';
-            if (isAdmin() || STATE.activeModule !== 'incoming') {
+            if (isAdmin()) {
               html += '<button class="btn btn-icon" data-edit="' + row.__rowIndex + '" title="Edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>';
             }
-            if (_showSign) {
+            if (_showSign && !isAdmin()) {
               var _signed = row[_sigColHdr];
               html += '<button class="btn btn-icon' + (_signed ? ' btn-sign-approved' : '') + '" data-sign="' + row.__rowIndex + '" title="' + (_signed ? 'View / Re-sign' : 'Sign &amp; Approve') + '">'
                 + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">'
@@ -2099,6 +2218,19 @@
       if (current) {
         html += '<span class="shipment-bar-count">Showing ' + countSel + ' of ' + countAll + ' records</span>';
         if (STATE.activeModule === 'invoice') {
+          var _dateHdr = m.headers.find(function (h) {
+            var k = h.toUpperCase().replace(/[^A-Z0-9]/g, '');
+            return k === 'DATE' || k === 'INVOICEDATE' || k === 'INVDATE';
+          });
+          if (_dateHdr && m.filtered.length > 0) {
+            var _dateVal = String(m.filtered[0][_dateHdr] || '').trim();
+            if (_dateVal) {
+              html += '<span class="shipment-bar-total">'
+                + '<span class="shipment-bar-total-lbl">' + escapeHtml(_dateHdr) + '</span>'
+                + '<strong style="color:var(--text)">' + escapeHtml(_dateVal) + '</strong>'
+                + '</span>';
+            }
+          }
           var _totalHdr = m.headers.find(function (h) {
             return h.toUpperCase().replace(/[^A-Z0-9]/g, '').indexOf('TOTAL') !== -1;
           });
@@ -2113,6 +2245,19 @@
               + '<span class="shipment-bar-total-lbl">' + escapeHtml(_totalHdr) + '</span>'
               + '<strong>' + _fmt + '</strong>'
               + '</span>';
+          }
+          var _exHdr = m.headers.find(function (h) {
+            var k = h.toUpperCase().replace(/[^A-Z0-9]/g, '');
+            return k === 'EXCHANGERATE' || k === 'EXRATE' || k === 'EXCHRATE' || (k.indexOf('EXCHANGE') !== -1 && k.indexOf('RATE') !== -1);
+          });
+          if (_exHdr && m.filtered.length > 0) {
+            var _exVal = String(m.filtered[0][_exHdr] || '').trim();
+            if (_exVal) {
+              html += '<span class="shipment-bar-total">'
+                + '<span class="shipment-bar-total-lbl">' + escapeHtml(_exHdr) + '</span>'
+                + '<strong style="color:var(--accent)">' + escapeHtml(_exVal) + '</strong>'
+                + '</span>';
+            }
           }
         }
       }
@@ -3254,9 +3399,7 @@
         + '</div>'
         + '<div class="modal-body">'
         + existingHtml
-        + '<p style="font-size:12px;color:var(--muted);margin:0 0 8px">'
-        + (existing ? 'Draw a new signature to replace existing:' : 'Boss draws signature below:')
-        + '</p>'
+        + (existing ? '<p style="font-size:12px;color:var(--muted);margin:0 0 8px">Draw a new signature to replace existing:</p>' : '')
         + '<canvas id="sigCanvas" width="490" height="180"></canvas>'
         + '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">'
         + '<button class="btn" id="sigClearBtn">Clear</button>'
@@ -3648,16 +3791,20 @@
       if (pin && pin.length !== 4) { showToast('PIN must be exactly 4 digits', 'error'); return; }
       if (pin.length === 4) STATE.config.pin = pin;
       persistConfig();
-      // Account password changes — admin only
+      // Account password changes — admin only, persisted to the USERS sheet
       if (isAdmin()) {
-        const accts = getAccounts();
         const newAdminPass = (($('settingsAdminPass') && $('settingsAdminPass').value) || '').trim();
         const newUserPass  = (($('settingsUserPass')  && $('settingsUserPass').value)  || '').trim();
         if (newAdminPass && newAdminPass.length < 4) { showToast('Admin password must be at least 4 characters', 'error'); return; }
         if (newUserPass  && newUserPass.length  < 4) { showToast('User password must be at least 4 characters',  'error'); return; }
-        if (newAdminPass) accts.admin.password = newAdminPass;
-        if (newUserPass)  accts.user.password  = newUserPass;
-        saveAccounts(accts);
+        if (newAdminPass) {
+          if (_accountsCache && _accountsCache.admin) _accountsCache.admin.password = newAdminPass;
+          google.script.run.withSuccessHandler(function () {}).withFailureHandler(function () {}).saveUser('admin', newAdminPass, 'admin');
+        }
+        if (newUserPass) {
+          if (_accountsCache && _accountsCache.user) _accountsCache.user.password = newUserPass;
+          google.script.run.withSuccessHandler(function () {}).withFailureHandler(function () {}).saveUser('user', newUserPass, 'user');
+        }
       }
       showToast('Settings saved — reloading data', 'success');
       // invalidate all module caches and reload the active one
@@ -3669,21 +3816,25 @@
     function renderAcctUserList() {
       const el = document.getElementById('acctUserList');
       if (!el) return;
-      const accts = getAccounts();
-      const extra = Object.keys(accts).filter(function (u) { return u !== 'admin' && u !== 'user'; });
-      if (!extra.length) {
-        el.innerHTML = '<div style="color:var(--muted);font-size:12px;margin-top:4px">No additional accounts created yet.</div>';
-        return;
-      }
-      let html = '<div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px">Additional Accounts</div>';
-      extra.forEach(function (u) {
-        html += '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">' +
-          '<span style="flex:1;font-size:13px">' + escapeHtml(u) + '</span>' +
-          '<span style="background:var(--panel-2);padding:2px 8px;border-radius:4px;font-size:11px;color:var(--muted)">' + escapeHtml(accts[u].role) + '</span>' +
-          '<button class="btn" style="padding:3px 10px;font-size:11px" onclick="deleteAccount(\'' + escapeHtml(u) + '\')">Delete</button>' +
-        '</div>';
+      el.innerHTML = '<div style="color:var(--muted);font-size:12px;margin-top:4px">Loading accounts…</div>';
+      fetchAccounts(function (accts) {
+        const el2 = document.getElementById('acctUserList');
+        if (!el2) return; // panel was closed before fetch returned
+        const extra = Object.keys(accts).filter(function (u) { return u !== 'admin' && u !== 'user'; });
+        if (!extra.length) {
+          el2.innerHTML = '<div style="color:var(--muted);font-size:12px;margin-top:4px">No additional accounts created yet.</div>';
+          return;
+        }
+        let html = '<div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px">Additional Accounts</div>';
+        extra.forEach(function (u) {
+          html += '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">' +
+            '<span style="flex:1;font-size:13px">' + escapeHtml(u) + '</span>' +
+            '<span style="background:var(--panel-2);padding:2px 8px;border-radius:4px;font-size:11px;color:var(--muted)">' + escapeHtml(accts[u].role) + '</span>' +
+            '<button class="btn" style="padding:3px 10px;font-size:11px" onclick="deleteAccount(\'' + escapeHtml(u) + '\')">Delete</button>' +
+          '</div>';
+        });
+        el2.innerHTML = html;
       });
-      el.innerHTML = html;
     }
 
     function createAccount() {
@@ -3695,24 +3846,48 @@
       if (!/^[a-z0-9_]+$/.test(username)) { showToast('Use only letters, numbers, or underscores', 'error'); return; }
       if (username === 'admin' || username === 'user') { showToast('Cannot use reserved username "' + username + '"', 'error'); return; }
       if (password.length < 4) { showToast('Password must be at least 4 characters', 'error'); return; }
-      const accts = getAccounts();
-      if (accts[username]) { showToast('Username "' + username + '" already exists', 'error'); return; }
-      accts[username] = { password: password, role: role };
-      saveAccounts(accts);
-      if ($('newAcctUsername')) $('newAcctUsername').value = '';
-      if ($('newAcctPassword')) $('newAcctPassword').value = '';
-      renderAcctUserList();
-      showToast('Account "' + username + '" created', 'success');
+      if (_accountsCache && _accountsCache[username]) { showToast('Username "' + username + '" already exists', 'error'); return; }
+      const _nu = $('newAcctUsername'), _np = $('newAcctPassword');
+      if (_nu) _nu.disabled = true;
+      if (_np) _np.disabled = true;
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (_nu) _nu.disabled = false;
+          if (_np) _np.disabled = false;
+          if (res && res.success) {
+            if (_accountsCache) _accountsCache[username] = { password: password, role: role };
+            if (_nu) _nu.value = '';
+            if (_np) _np.value = '';
+            renderAcctUserList();
+            showToast('Account "' + username + '" created', 'success');
+          } else {
+            showToast('Failed: ' + (res && res.error ? res.error : 'unknown'), 'error');
+          }
+        })
+        .withFailureHandler(function (err) {
+          if (_nu) _nu.disabled = false;
+          if (_np) _np.disabled = false;
+          showToast('Failed: ' + (err.message || err), 'error');
+        })
+        .saveUser(username, password, role);
     }
 
     function deleteAccount(username) {
       if (!isAdmin() || !username || username === 'admin' || username === 'user') return;
-      const accts = getAccounts();
-      if (!accts[username]) return;
-      delete accts[username];
-      saveAccounts(accts);
-      renderAcctUserList();
-      showToast('Account "' + username + '" deleted', 'success');
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (res && res.success) {
+            if (_accountsCache) delete _accountsCache[username];
+            renderAcctUserList();
+            showToast('Account "' + username + '" deleted', 'success');
+          } else {
+            showToast('Failed: ' + (res && res.error ? res.error : 'unknown'), 'error');
+          }
+        })
+        .withFailureHandler(function (err) {
+          showToast('Failed: ' + (err.message || err), 'error');
+        })
+        .deleteUser(username);
     }
 
     function testSettingsConnection() {
@@ -4004,6 +4179,7 @@
         switchModule('purchased');
         startAutoRefresh();
         fetchItemCodes(function () {});
+        _syncColVisFromSheet();
       } else {
         // Login gate is visible by default; focus username field
         setTimeout(function () {

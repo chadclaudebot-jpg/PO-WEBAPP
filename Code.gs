@@ -242,6 +242,140 @@ function deleteRow(sheetName, rowIndex) {
 }
 
 /**
+ * Returns all accounts from the USERS tab as { ok, accounts }.
+ * Tab must have headers: username | password | role (row 1).
+ * Returns ok:true with empty accounts if the tab exists but has no data rows.
+ * Returns ok:false if the tab does not exist (frontend falls back to localStorage).
+ */
+function getUsers() {
+  try {
+    const sheet = getSheet_('USERS');
+    const lastRow = sheet.getLastRow();
+    if (lastRow < 2) return { ok: true, accounts: {} };
+    const values = sheet.getRange(2, 1, lastRow - 1, 3).getValues();
+    const accounts = {};
+    values.forEach(function (row) {
+      const username = String(row[0] || '').trim().toLowerCase();
+      const password = String(row[1] || '').trim();
+      const role     = String(row[2] || '').trim().toLowerCase();
+      if (username) accounts[username] = { password: password, role: role === 'admin' ? 'admin' : 'user' };
+    });
+    return { ok: true, accounts: accounts };
+  } catch (e) {
+    return { ok: false, error: e.toString() };
+  }
+}
+
+/**
+ * Creates or updates a user row in the USERS tab.
+ * If the tab does not exist it is created with headers automatically.
+ */
+function saveUser(username, password, role) {
+  try {
+    username = String(username || '').trim().toLowerCase();
+    password = String(password || '').trim();
+    role     = String(role     || '').trim().toLowerCase() === 'admin' ? 'admin' : 'user';
+    if (!username || !password) return { success: false, error: 'Username and password are required' };
+
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = ss.getSheetByName('USERS');
+    if (!sheet) {
+      sheet = ss.insertSheet('USERS');
+      sheet.appendRow(['username', 'password', 'role']);
+    }
+
+    const lastRow = sheet.getLastRow();
+    if (lastRow >= 2) {
+      const col = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+      for (let i = 0; i < col.length; i++) {
+        if (String(col[i][0] || '').trim().toLowerCase() === username) {
+          sheet.getRange(i + 2, 1, 1, 3).setValues([[username, password, role]]);
+          return { success: true };
+        }
+      }
+    }
+    sheet.appendRow([username, password, role]);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
+
+/**
+ * Deletes a user row from the USERS tab by username.
+ */
+function deleteUser(username) {
+  try {
+    username = String(username || '').trim().toLowerCase();
+    const sheet = getSheet_('USERS');
+    const lastRow = sheet.getLastRow();
+    if (lastRow < 2) return { success: false, error: 'User not found' };
+    const col = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+    for (let i = col.length - 1; i >= 0; i--) {
+      if (String(col[i][0] || '').trim().toLowerCase() === username) {
+        sheet.deleteRow(i + 2);
+        return { success: true };
+      }
+    }
+    return { success: false, error: 'User "' + username + '" not found' };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
+
+/**
+ * Reads the column-visibility config JSON from the APP_CONFIG tab.
+ * Returns { ok: true, value: '{}' } if the tab or key doesn't exist yet.
+ */
+function getColVis() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName('APP_CONFIG');
+    if (!sheet) return { ok: true, value: '{}' };
+    const lastRow = sheet.getLastRow();
+    if (lastRow < 2) return { ok: true, value: '{}' };
+    const data = sheet.getRange(2, 1, lastRow - 1, 2).getValues();
+    for (let i = 0; i < data.length; i++) {
+      if (String(data[i][0]).trim() === 'col_vis') {
+        return { ok: true, value: String(data[i][1] || '{}') };
+      }
+    }
+    return { ok: true, value: '{}' };
+  } catch (e) {
+    return { ok: false, error: e.toString() };
+  }
+}
+
+/**
+ * Persists the column-visibility config JSON to the APP_CONFIG tab.
+ * Creates the tab with headers if it doesn't exist.
+ */
+function saveColVis(jsonStr) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = ss.getSheetByName('APP_CONFIG');
+    if (!sheet) {
+      sheet = ss.insertSheet('APP_CONFIG');
+      sheet.appendRow(['key', 'value']);
+    }
+    const lastRow = sheet.getLastRow();
+    if (lastRow >= 2) {
+      const keys = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+      for (let i = 0; i < keys.length; i++) {
+        if (String(keys[i][0]).trim() === 'col_vis') {
+          sheet.getRange(i + 2, 2).setValue(jsonStr);
+          return { success: true };
+        }
+      }
+    }
+    sheet.appendRow(['col_vis', jsonStr]);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
+
+/**
  * Returns all item code → description pairs from the ITEMCODES tab.
  * Expects row 1 to be a header row; data starts at row 2.
  * Col A = Item Code, Col B = Description.
