@@ -1,7 +1,6 @@
     <!DOCTYPE html>
     <html lang="en">
     <head>
-    <base target="_top">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PO WEBAPP V1.3</title>
@@ -1024,6 +1023,20 @@
         <div class="modal-body">
 
           <div class="settings-section">
+            <h4>Apps Script URL</h4>
+            <p class="settings-info" style="margin-top:0;margin-bottom:12px">
+              Paste the deployment URL from your Google Apps Script web app
+              (<strong>Extensions → Apps Script → Deploy → Manage deployments</strong>).
+              It looks like <code>https://script.google.com/macros/s/…/exec</code>.
+              This is stored in this browser only.
+            </p>
+            <div class="form-field">
+              <label>GAS Deployment URL</label>
+              <input type="url" id="gasUrlInput" placeholder="https://script.google.com/macros/s/…/exec" style="font-size:12px">
+            </div>
+          </div>
+
+          <div class="settings-section">
             <h4>Sheet Tab Names</h4>
             <p class="settings-info" style="margin-top:0;margin-bottom:12px">
               Each module reads from one tab in the connected spreadsheet. Set the
@@ -1203,6 +1216,33 @@
       };
     }
 
+    // =====================================================================
+    // ============ GAS API bridge (GitHub Pages → Apps Script REST) =======
+    // =====================================================================
+    const _GAS_URL_KEY = 'po_webapp_gas_url_v1';
+    function _getGasUrl() {
+      try { return (localStorage.getItem(_GAS_URL_KEY) || '').trim(); } catch(e) { return ''; }
+    }
+    var _GAS_READS = { getRows: 1, getUsers: 1, getColVis: 1, getItemCodes: 1, listSheets: 1 };
+    function gasRun(action, params) {
+      var url = _getGasUrl();
+      if (!url) return Promise.reject(new Error('Apps Script URL not configured. Open ⚙ Settings and paste your GAS deployment URL.'));
+      if (_GAS_READS[action]) {
+        var qs = 'action=' + encodeURIComponent(action);
+        if (params) Object.keys(params).forEach(function(k) {
+          var v = params[k];
+          qs += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(v !== null && v !== undefined ? v : '');
+        });
+        return fetch(url + '?' + qs, { redirect: 'follow' }).then(function(r) { return r.json(); });
+      }
+      return fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify(Object.assign({ action: action }, params || {})),
+        redirect: 'follow'
+      }).then(function(r) { return r.json(); });
+    }
+
     // Sheet-backed account cache — fetched once per page load from the USERS tab.
     // Sheet accounts are merged on top of local defaults so admin/user always work
     // even when their passwords haven't been saved to the sheet yet.
@@ -1215,8 +1255,8 @@
       _accountsCbs.push(cb);
       if (_accountsLoading) return;
       _accountsLoading = true;
-      google.script.run
-        .withSuccessHandler(function (res) {
+      gasRun('getUsers', {})
+        .then(function (res) {
           _accountsLoading = false;
           const sheetAccounts = (res && res.ok && res.accounts) ? res.accounts : {};
           // Local defaults are the base; sheet overrides (newer passwords, extra users)
@@ -1225,14 +1265,13 @@
           _accountsCbs.forEach(function (fn) { fn(merged); });
           _accountsCbs = [];
         })
-        .withFailureHandler(function () {
+        .catch(function () {
           _accountsLoading = false;
           const local = getLocalAccounts();
           _accountsCache = local;
           _accountsCbs.forEach(function (fn) { fn(local); });
           _accountsCbs = [];
-        })
-        .getUsers();
+        });
     }
 
     function invalidateAccountsCache() { _accountsCache = null; }
@@ -1495,15 +1534,13 @@
 
     function saveColVis() {
       try { localStorage.setItem(COL_VIS_KEY, JSON.stringify(colVisConfig)); } catch(e) {}
-      google.script.run
-        .withSuccessHandler(function () {}).withFailureHandler(function () {})
-        .saveColVis(JSON.stringify(colVisConfig));
+      gasRun('saveColVis', { jsonStr: JSON.stringify(colVisConfig) }).then(function(){}).catch(function(){});
     }
 
     // Pulls the authoritative col-vis config from the sheet and re-renders if it differs.
     function _syncColVisFromSheet() {
-      google.script.run
-        .withSuccessHandler(function (res) {
+      gasRun('getColVis', {})
+        .then(function (res) {
           if (!res || !res.ok) return;
           try {
             const remote = JSON.parse(res.value || '{}');
@@ -1513,8 +1550,7 @@
             applyFiltersAndRender();
           } catch(e) {}
         })
-        .withFailureHandler(function () {})
-        .getColVis();
+        .catch(function () {});
     }
 
     function isColAdminOnly(moduleId, header) { return !!(colVisConfig[moduleId] && colVisConfig[moduleId][header]); }
@@ -1703,8 +1739,8 @@
         }
       }, 12000);
 
-      google.script.run
-        .withSuccessHandler(function (result) {
+      gasRun('getRows', { sheetName: tab })
+        .then(function (result) {
           clearTimeout(watchdog);
           m.loading = false;
           if (result && result.error) {
@@ -1729,19 +1765,18 @@
           $('tabInfo').innerHTML = 'Tab: <span class="pill">' + escapeHtml(confirmedTab) + '</span>';
           applyFiltersAndRender();
         })
-        .withFailureHandler(function (err) {
+        .catch(function (err) {
           clearTimeout(watchdog);
           m.loading = false;
           m.error = err.message || String(err);
           $('tableContainer').innerHTML =
             '<div class="empty-state">' +
             '<strong>Connection failed:</strong><br><code style="color:var(--danger)">' + escapeHtml(m.error) + '</code><br><br>' +
-            'This usually means the Apps Script web app is not deployed, or the deployment URL is wrong.<br>' +
-            'Go to <strong>Extensions → Apps Script → Deploy → Manage deployments</strong> and confirm the deployment is active.' +
+            'This usually means the Apps Script URL is not configured or the deployment is not active.<br>' +
+            'Open <strong>⚙ Settings</strong> and paste your GAS deployment URL, then confirm the deployment is active in Apps Script.' +
             '<br><br><button class="btn" style="margin-top:8px" onclick="activeMod().loaded=false;loadActiveModule()">↺ Retry</button>' +
             '</div>';
-        })
-        .getRows(tab);
+        });
     }
 
     // =====================================================================
@@ -1819,8 +1854,8 @@
         renderInvoiceTabBar();
       }
 
-      google.script.run
-        .withSuccessHandler(function (result) {
+      gasRun('getRows', { sheetName: tabName })
+        .then(function (result) {
           m.loading = false;
           if (result && result.error) {
             if (STATE.activeModule === 'invoice' && m.invoiceTab === tabName) {
@@ -1846,15 +1881,14 @@
             markSynced();
           }
         })
-        .withFailureHandler(function (err) {
+        .catch(function (err) {
           m.loading = false;
           if (STATE.activeModule === 'invoice' && m.invoiceTab === tabName) {
             $('tableContainer').innerHTML = '<div class="empty-state"><strong>Connection failed:</strong><br>'
               + '<code style="color:var(--danger)">' + escapeHtml(err.message || err) + '</code>'
               + '<br><br><button class="btn" style="margin-top:8px" onclick="loadInvoiceSubTab(\'' + escapeHtml(tabName) + '\')">↺ Retry</button></div>';
           }
-        })
-        .getRows(tabName);
+        });
     }
 
     function silentRefreshInvoiceSubTab(tabName) {
@@ -1863,8 +1897,8 @@
       const _c = m.subTabData[tabName];
       if (_c && Date.now() - (_c.cachedAt || 0) < 30000) return; // cache is fresh — skip
       const seq = _fetchSeq;
-      google.script.run
-        .withSuccessHandler(function (result) {
+      gasRun('getRows', { sheetName: tabName })
+        .then(function (result) {
           if (seq !== _fetchSeq) return; // stale — a save happened after this fetch started
           if (!result || result.error) return;
           const headers = result.headers || [];
@@ -1879,8 +1913,7 @@
             applyFiltersAndRender();
           }
         })
-        .withFailureHandler(function () {})
-        .getRows(tabName);
+        .catch(function () {});
     }
 
     function applyFiltersAndRender() {
@@ -3203,10 +3236,9 @@
       if (STATE.activeModule === 'invoice') applyFiltersAndRender();
 
       rows.forEach(function (data) {
-        google.script.run
-          .withSuccessHandler(function (res) { tick(!!(res && res.success)); })
-          .withFailureHandler(function ()    { tick(false); })
-          .addRow(tab, data);
+        gasRun('addRow', { sheetName: tab, data: data })
+          .then(function (res) { tick(!!(res && res.success)); })
+          .catch(function ()   { tick(false); });
       });
     }
 
@@ -3227,8 +3259,8 @@
       _itemCodesCbs.push(cb);
       if (_itemCodesLoading) return;
       _itemCodesLoading = true;
-      google.script.run
-        .withSuccessHandler(function (res) {
+      gasRun('getItemCodes', {})
+        .then(function (res) {
           _itemCodesLoading = false;
           if (res && res.ok && res.map && Object.keys(res.map).length > 0) {
             _itemCodesMap = res.map;         // permanent cache — fetch succeeded
@@ -3239,13 +3271,12 @@
           _itemCodesCbs.forEach(function (fn) { fn(_map); });
           _itemCodesCbs = [];
         })
-        .withFailureHandler(function () {
+        .catch(function () {
           _itemCodesLoading = false;
           _itemCodesRetryAfter = Date.now() + 20000;   // retry in 20 s
           _itemCodesCbs.forEach(function (fn) { fn({}); });
           _itemCodesCbs = [];
-        })
-        .getItemCodes();
+        });
     }
 
     function saveNew(data, saveText) {
@@ -3256,8 +3287,8 @@
       $('modalSave').disabled = true;
       $('modalSave').textContent = 'Saving...';
       _fetchSeq++;
-      google.script.run
-        .withSuccessHandler(function (res) {
+      gasRun('addRow', { sheetName: tab, data: data })
+        .then(function (res) {
           if (res && res.success) {
             showToast(cfg.label + ' added', 'success');
             closeModal();
@@ -3274,12 +3305,11 @@
             $('modalSave').textContent = saveText;
           }
         })
-        .withFailureHandler(function (err) {
+        .catch(function (err) {
           showToast('Failed: ' + (err.message || err), 'error');
           $('modalSave').disabled = false;
           $('modalSave').textContent = saveText;
-        })
-        .addRow(tab, data);
+        });
     }
 
     function saveEdit(rowIndex, data, saveText) {
@@ -3300,35 +3330,32 @@
       }, null);
 
       _fetchSeq++; // invalidate any in-flight silentRefresh before this write
-      var _saveRunner = google.script.run
-        .withSuccessHandler(function (res) {
-          if (res && res.success) {
-            showToast(cfg.label + ' updated', 'success');
-            if (savedStatus === 'Received' && moduleId !== 'received') {
-              m.rows = m.rows.filter(function (r) { return r.__rowIndex !== rowIndex; });
-              if (STATE.activeModule === moduleId) applyFiltersAndRender();
-              prefetchModule('received');
-            }
-            saveCachedData(moduleId, m.headers, m.rows, m.sheetNameActual);
-            markSynced();
-            silentRefresh();
-          } else {
-            // Rollback optimistic change
-            if (rowRef && snapshot) Object.assign(rowRef, snapshot);
+      var _saveOnSuccess = function (res) {
+        if (res && res.success) {
+          showToast(cfg.label + ' updated', 'success');
+          if (savedStatus === 'Received' && moduleId !== 'received') {
+            m.rows = m.rows.filter(function (r) { return r.__rowIndex !== rowIndex; });
             if (STATE.activeModule === moduleId) applyFiltersAndRender();
-            showToast('Failed: ' + (res && res.error ? res.error : 'unknown'), 'error');
+            prefetchModule('received');
           }
-        })
-        .withFailureHandler(function (err) {
-          // Rollback optimistic change
+          saveCachedData(moduleId, m.headers, m.rows, m.sheetNameActual);
+          markSynced();
+          silentRefresh();
+        } else {
           if (rowRef && snapshot) Object.assign(rowRef, snapshot);
           if (STATE.activeModule === moduleId) applyFiltersAndRender();
-          showToast('Failed: ' + (err.message || err), 'error');
-        });
+          showToast('Failed: ' + (res && res.error ? res.error : 'unknown'), 'error');
+        }
+      };
+      var _saveOnFailure = function (err) {
+        if (rowRef && snapshot) Object.assign(rowRef, snapshot);
+        if (STATE.activeModule === moduleId) applyFiltersAndRender();
+        showToast('Failed: ' + (err.message || err), 'error');
+      };
       if (savedStatus === 'Received' && moduleId !== 'received') {
-        _saveRunner.moveToReceived(tab, rowIndex, data, tabFor('received'));
+        gasRun('moveToReceived', { sourceTab: tab, rowIndex: rowIndex, data: data, targetTab: tabFor('received') }).then(_saveOnSuccess).catch(_saveOnFailure);
       } else {
-        _saveRunner.updateRow(tab, rowIndex, data);
+        gasRun('updateRow', { sheetName: tab, rowIndex: rowIndex, data: data }).then(_saveOnSuccess).catch(_saveOnFailure);
       }
     }
 
@@ -3345,8 +3372,8 @@
         saveCachedData(moduleId, m.headers, m.rows, m.sheetNameActual);
         if (STATE.activeModule === moduleId) applyFiltersAndRender();
       }
-      google.script.run
-        .withSuccessHandler(function (res) {
+      gasRun('deleteRow', { sheetName: tab, rowIndex: rowIndex })
+        .then(function (res) {
           if (res && res.success) {
             showToast(cfg.label + ' deleted', 'success');
             silentRefresh();
@@ -3359,15 +3386,14 @@
             showToast('Failed: ' + (res && res.error ? res.error : 'unknown'), 'error');
           }
         })
-        .withFailureHandler(function (err) {
+        .catch(function (err) {
           if (removedRow && removedIdx !== -1) {
             m.rows.splice(removedIdx, 0, removedRow);
             saveCachedData(moduleId, m.headers, m.rows, m.sheetNameActual);
             if (STATE.activeModule === moduleId) applyFiltersAndRender();
           }
           showToast('Failed: ' + (err.message || err), 'error');
-        })
-        .deleteRow(tab, rowIndex);
+        });
     }
 
     // =====================================================================
@@ -3520,8 +3546,8 @@
         if (String(h || '').trim()) data[h] = rowRef[h] !== undefined ? rowRef[h] : '';
       });
 
-      google.script.run
-        .withSuccessHandler(function (res) {
+      gasRun('updateRow', { sheetName: tab, rowIndex: rowIndex, data: data })
+        .then(function (res) {
           if (res && res.success) {
             showToast('Signature deleted', 'success');
             markSynced();
@@ -3531,12 +3557,11 @@
             showToast('Failed: ' + (res && res.error ? res.error : 'unknown'), 'error');
           }
         })
-        .withFailureHandler(function (err) {
+        .catch(function (err) {
           rowRef[sigCol] = snapshot;
           if (STATE.activeModule === moduleId) applyFiltersAndRender();
           showToast('Failed: ' + (err.message || err), 'error');
-        })
-        .updateRow(tab, rowIndex, data);
+        });
     }
 
     function saveSignature(rowIndex, sigCol, dataUrl) {
@@ -3556,8 +3581,8 @@
         if (String(h || '').trim()) data[h] = rowRef[h] !== undefined ? rowRef[h] : '';
       });
 
-      google.script.run
-        .withSuccessHandler(function (res) {
+      gasRun('updateRow', { sheetName: tab, rowIndex: rowIndex, data: data })
+        .then(function (res) {
           if (res && res.success) {
             showToast('Order signed & approved', 'success');
             markSynced();
@@ -3567,12 +3592,11 @@
             showToast('Failed: ' + (res && res.error ? res.error : 'unknown'), 'error');
           }
         })
-        .withFailureHandler(function (err) {
+        .catch(function (err) {
           rowRef[sigCol] = snapshot;
           if (STATE.activeModule === moduleId) applyFiltersAndRender();
           showToast('Failed: ' + (err.message || err), 'error');
-        })
-        .updateRow(tab, rowIndex, data);
+        });
     }
 
     // =====================================================================
@@ -3642,32 +3666,31 @@
         if (String(h || '').trim()) data[h] = rowRef[h] !== undefined ? rowRef[h] : '';
       });
 
-      var _qRunner = google.script.run
-        .withSuccessHandler(function (res) {
-          if (res && res.success) {
-            showToast('Status updated', 'success');
-            if (newValue === 'Received' && moduleId !== 'received') {
-              m.rows = m.rows.filter(function (r) { return r.__rowIndex !== rowIndex; });
-              if (STATE.activeModule === moduleId) applyFiltersAndRender();
-              prefetchModule('received');
-            }
-            saveCachedData(moduleId, m.headers, m.rows, m.sheetNameActual);
-            markSynced();
-          } else {
-            Object.assign(rowRef, snapshot);
+      var _qOnSuccess = function (res) {
+        if (res && res.success) {
+          showToast('Status updated', 'success');
+          if (newValue === 'Received' && moduleId !== 'received') {
+            m.rows = m.rows.filter(function (r) { return r.__rowIndex !== rowIndex; });
             if (STATE.activeModule === moduleId) applyFiltersAndRender();
-            showToast('Failed: ' + (res && res.error ? res.error : 'unknown'), 'error');
+            prefetchModule('received');
           }
-        })
-        .withFailureHandler(function (err) {
+          saveCachedData(moduleId, m.headers, m.rows, m.sheetNameActual);
+          markSynced();
+        } else {
           Object.assign(rowRef, snapshot);
           if (STATE.activeModule === moduleId) applyFiltersAndRender();
-          showToast('Failed: ' + (err.message || err), 'error');
-        });
+          showToast('Failed: ' + (res && res.error ? res.error : 'unknown'), 'error');
+        }
+      };
+      var _qOnFailure = function (err) {
+        Object.assign(rowRef, snapshot);
+        if (STATE.activeModule === moduleId) applyFiltersAndRender();
+        showToast('Failed: ' + (err.message || err), 'error');
+      };
       if (newValue === 'Received' && moduleId !== 'received') {
-        _qRunner.moveToReceived(tab, rowIndex, data, tabFor('received'));
+        gasRun('moveToReceived', { sourceTab: tab, rowIndex: rowIndex, data: data, targetTab: tabFor('received') }).then(_qOnSuccess).catch(_qOnFailure);
       } else {
-        _qRunner.updateRow(tab, rowIndex, data);
+        gasRun('updateRow', { sheetName: tab, rowIndex: rowIndex, data: data }).then(_qOnSuccess).catch(_qOnFailure);
       }
     }
 
@@ -3729,6 +3752,9 @@
     }
 
     function openSettingsPanel() {
+      // Populate GAS URL
+      const _gasUrlEl = $('gasUrlInput');
+      if (_gasUrlEl) _gasUrlEl.value = _getGasUrl();
       // Show current override values; placeholder already shows the default tab name
       $('tab_purchased').value = STATE.config.tabs.purchased || '';
       $('tab_incoming').value  = STATE.config.tabs.incoming  || '';
@@ -3759,8 +3785,8 @@
         if (_nr) _nr.value = 'user';
         renderAcctUserList();
       }
-      google.script.run
-        .withSuccessHandler(function (res) {
+      gasRun('listSheets', {})
+        .then(function (res) {
           if (res && res.ok) {
             $('aboutSpreadsheetName').textContent = res.spreadsheetName;
             const tabs = (res.sheets || []).map(function (n) { return '<code>' + escapeHtml(n) + '</code>'; }).join(' ');
@@ -3771,16 +3797,18 @@
             $('settingsSheetInfo').textContent = 'Could not list tabs: ' + (res && res.error ? res.error : 'unknown');
           }
         })
-        .withFailureHandler(function (err) {
+        .catch(function (err) {
           $('settingsSheetInfo').textContent = 'Failed to list tabs: ' + (err.message || err);
-        })
-        .listSheets();
+        });
       $('settingsPanel').style.display = 'flex';
     }
 
     function closeSettingsPanel() { $('settingsPanel').style.display = 'none'; }
 
     function saveSettings() {
+      // Save GAS URL
+      const _gasUrlVal = (($('gasUrlInput') && $('gasUrlInput').value) || '').trim();
+      if (_gasUrlVal) { try { localStorage.setItem(_GAS_URL_KEY, _gasUrlVal); } catch(e) {} }
       STATE.config.tabs.purchased = ($('tab_purchased').value || '').trim();
       STATE.config.tabs.incoming  = ($('tab_incoming').value  || '').trim();
       STATE.config.tabs.samples   = ($('tab_samples').value   || '').trim();
@@ -3799,11 +3827,11 @@
         if (newUserPass  && newUserPass.length  < 4) { showToast('User password must be at least 4 characters',  'error'); return; }
         if (newAdminPass) {
           if (_accountsCache && _accountsCache.admin) _accountsCache.admin.password = newAdminPass;
-          google.script.run.withSuccessHandler(function () {}).withFailureHandler(function () {}).saveUser('admin', newAdminPass, 'admin');
+          gasRun('saveUser', { username: 'admin', password: newAdminPass, role: 'admin' }).then(function(){}).catch(function(){});
         }
         if (newUserPass) {
           if (_accountsCache && _accountsCache.user) _accountsCache.user.password = newUserPass;
-          google.script.run.withSuccessHandler(function () {}).withFailureHandler(function () {}).saveUser('user', newUserPass, 'user');
+          gasRun('saveUser', { username: 'user', password: newUserPass, role: 'user' }).then(function(){}).catch(function(){});
         }
       }
       showToast('Settings saved — reloading data', 'success');
@@ -3850,8 +3878,8 @@
       const _nu = $('newAcctUsername'), _np = $('newAcctPassword');
       if (_nu) _nu.disabled = true;
       if (_np) _np.disabled = true;
-      google.script.run
-        .withSuccessHandler(function (res) {
+      gasRun('saveUser', { username: username, password: password, role: role })
+        .then(function (res) {
           if (_nu) _nu.disabled = false;
           if (_np) _np.disabled = false;
           if (res && res.success) {
@@ -3864,18 +3892,17 @@
             showToast('Failed: ' + (res && res.error ? res.error : 'unknown'), 'error');
           }
         })
-        .withFailureHandler(function (err) {
+        .catch(function (err) {
           if (_nu) _nu.disabled = false;
           if (_np) _np.disabled = false;
           showToast('Failed: ' + (err.message || err), 'error');
-        })
-        .saveUser(username, password, role);
+        });
     }
 
     function deleteAccount(username) {
       if (!isAdmin() || !username || username === 'admin' || username === 'user') return;
-      google.script.run
-        .withSuccessHandler(function (res) {
+      gasRun('deleteUser', { username: username })
+        .then(function (res) {
           if (res && res.success) {
             if (_accountsCache) delete _accountsCache[username];
             renderAcctUserList();
@@ -3884,10 +3911,9 @@
             showToast('Failed: ' + (res && res.error ? res.error : 'unknown'), 'error');
           }
         })
-        .withFailureHandler(function (err) {
+        .catch(function (err) {
           showToast('Failed: ' + (err.message || err), 'error');
-        })
-        .deleteUser(username);
+        });
     }
 
     function testSettingsConnection() {
@@ -3907,8 +3933,8 @@
       let done = 0;
       let lines = [];
       ids.forEach(function (id) {
-        google.script.run
-          .withSuccessHandler(function (res) {
+        gasRun('getRows', { sheetName: fields[id] })
+          .then(function (res) {
             done++;
             if (res && res.error) {
               lines.push('✖ <strong>' + escapeHtml(MODULES[id].label) + '</strong> → <code>' + escapeHtml(fields[id]) + '</code>: ' + escapeHtml(res.error));
@@ -3917,12 +3943,11 @@
             }
             if (done === ids.length) finalize();
           })
-          .withFailureHandler(function (err) {
+          .catch(function (err) {
             done++;
             lines.push('✖ <strong>' + escapeHtml(MODULES[id].label) + '</strong> → <code>' + escapeHtml(fields[id]) + '</code>: ' + escapeHtml(err.message || err));
             if (done === ids.length) finalize();
-          })
-          .getRows(fields[id]);
+          });
       });
       function finalize() {
         const anyFail = lines.some(function (l) { return l.indexOf('✖') === 0; });
@@ -4111,8 +4136,8 @@
       const moduleId = STATE.activeModule;
       const tab = tabFor(moduleId);
       const seq = _fetchSeq; // capture — if a save happens before this returns, seq won't match
-      google.script.run
-        .withSuccessHandler(function (result) {
+      gasRun('getRows', { sheetName: tab })
+        .then(function (result) {
           if (seq !== _fetchSeq) return; // stale response from before a save — discard
           if (!result || result.error) return;
           m.headers = result.headers || [];
@@ -4125,16 +4150,15 @@
             applyFiltersAndRender();
           }
         })
-        .withFailureHandler(function () { /* ignore silently */ })
-        .getRows(tab);
+        .catch(function () { /* ignore silently */ });
     }
 
     function prefetchModule(targetModuleId) {
       const m = STATE.modules[targetModuleId];
       if (!m || m.loading) return;
       const tab = tabFor(targetModuleId);
-      google.script.run
-        .withSuccessHandler(function (result) {
+      gasRun('getRows', { sheetName: tab })
+        .then(function (result) {
           if (!result || result.error) return;
           m.headers = result.headers || [];
           m.rows = excludeReceived(targetModuleId, result.headers || [], result.rows || []);
@@ -4143,8 +4167,7 @@
           saveCachedData(targetModuleId, m.headers, m.rows, m.sheetNameActual);
           if (STATE.activeModule === targetModuleId) applyFiltersAndRender();
         })
-        .withFailureHandler(function () {})
-        .getRows(tab);
+        .catch(function () {});
     }
 
     function markSynced() {

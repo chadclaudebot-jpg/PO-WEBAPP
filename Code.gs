@@ -35,14 +35,60 @@ const CACHE_TTL_SECONDS = 60;
 // ===================================================
 
 /**
- * Serves the web app HTML.
+ * Serves the web app HTML (GAS-hosted mode) when called with no action param.
+ * When called with ?action=<fn> from an external frontend (e.g. GitHub Pages),
+ * routes to the appropriate read function and returns JSON.
+ * ContentService responses automatically include Access-Control-Allow-Origin: *.
  */
-function doGet() {
-  return HtmlService.createTemplateFromFile('Index')
-    .evaluate()
-    .setTitle('PO WEBAPP V1.3')
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+function doGet(e) {
+  if (!e || !e.parameter || !e.parameter.action) {
+    return HtmlService.createTemplateFromFile('Index')
+      .evaluate()
+      .setTitle('PO WEBAPP V1.3')
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
+  var p = e.parameter;
+  var result;
+  switch (p.action) {
+    case 'getRows':      result = getRows(p.sheetName);   break;
+    case 'getUsers':     result = getUsers();             break;
+    case 'getColVis':    result = getColVis();            break;
+    case 'getItemCodes': result = getItemCodes();         break;
+    case 'listSheets':   result = listSheets();           break;
+    default:             result = { error: 'Unknown action: ' + p.action };
+  }
+  return jsonResponse_(result);
+}
+
+/**
+ * Routes write requests from an external frontend.
+ * Body must be a JSON string with { action, ...params }.
+ * Content-Type: text/plain avoids CORS preflight (simple request).
+ */
+function doPost(e) {
+  var body;
+  try { body = JSON.parse(e.postData.contents); } catch (err) {
+    return jsonResponse_({ success: false, error: 'Invalid JSON body' });
+  }
+  var result;
+  switch (body.action) {
+    case 'addRow':         result = addRow(body.sheetName, body.data);                                        break;
+    case 'updateRow':      result = updateRow(body.sheetName, body.rowIndex, body.data);                      break;
+    case 'deleteRow':      result = deleteRow(body.sheetName, body.rowIndex);                                 break;
+    case 'moveToReceived': result = moveToReceived(body.sourceTab, body.rowIndex, body.data, body.targetTab); break;
+    case 'saveUser':       result = saveUser(body.username, body.password, body.role);                        break;
+    case 'deleteUser':     result = deleteUser(body.username);                                                break;
+    case 'saveColVis':     result = saveColVis(body.jsonStr);                                                 break;
+    default:               result = { success: false, error: 'Unknown action: ' + body.action };
+  }
+  return jsonResponse_(result);
+}
+
+function jsonResponse_(data) {
+  return ContentService
+    .createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 function include(filename) {
