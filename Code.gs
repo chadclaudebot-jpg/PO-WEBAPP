@@ -54,6 +54,7 @@ function doGet(e) {
     case 'getRows':      result = getRows(p.sheetName);   break;
     case 'getUsers':     result = getUsers();             break;
     case 'getColVis':    result = getColVis();            break;
+    case 'getTabConfig': result = getTabConfig();         break;
     case 'getItemCodes': result = getItemCodes();         break;
     case 'listSheets':   result = listSheets();           break;
     default:             result = { error: 'Unknown action: ' + p.action };
@@ -80,6 +81,7 @@ function doPost(e) {
     case 'saveUser':       result = saveUser(body.username, body.password, body.role);                        break;
     case 'deleteUser':     result = deleteUser(body.username);                                                break;
     case 'saveColVis':     result = saveColVis(body.jsonStr);                                                 break;
+    case 'saveTabConfig':  result = saveTabConfig(body.jsonStr);                                              break;
     default:               result = { success: false, error: 'Unknown action: ' + body.action };
   }
   return jsonResponse_(result);
@@ -450,5 +452,56 @@ function getItemCodes() {
     return result;
   } catch (e) {
     return { ok: false, error: e.toString() };
+  }
+}
+
+/**
+ * Reads the tab-availability config JSON from the APP_CONFIG tab (key: tab_config).
+ * Returns { ok: true, value: '{}' } if the tab or key doesn't exist yet.
+ */
+function getTabConfig() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName('APP_CONFIG');
+    if (!sheet) return { ok: true, value: '{}' };
+    const lastRow = sheet.getLastRow();
+    if (lastRow < 2) return { ok: true, value: '{}' };
+    const data = sheet.getRange(2, 1, lastRow - 1, 2).getValues();
+    for (let i = 0; i < data.length; i++) {
+      if (String(data[i][0]).trim() === 'tab_config') {
+        return { ok: true, value: String(data[i][1] || '{}') };
+      }
+    }
+    return { ok: true, value: '{}' };
+  } catch (e) {
+    return { ok: false, error: e.toString() };
+  }
+}
+
+/**
+ * Persists the tab-availability config JSON to the APP_CONFIG tab (key: tab_config).
+ */
+function saveTabConfig(jsonStr) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = ss.getSheetByName('APP_CONFIG');
+    if (!sheet) {
+      sheet = ss.insertSheet('APP_CONFIG');
+      sheet.appendRow(['key', 'value']);
+    }
+    const lastRow = sheet.getLastRow();
+    if (lastRow >= 2) {
+      const keys = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+      for (let i = 0; i < keys.length; i++) {
+        if (String(keys[i][0]).trim() === 'tab_config') {
+          sheet.getRange(i + 2, 2).setValue(jsonStr);
+          return { success: true };
+        }
+      }
+    }
+    sheet.appendRow(['tab_config', jsonStr]);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.toString() };
   }
 }
